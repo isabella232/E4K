@@ -226,8 +226,8 @@ content-type: application/json
             "path" : "string: The path component of the SPIFFE ID"
         },
         "expires_at" : "string: Expiration timestamp (seconds since Unix epoch).",
-        "issued_at" : "string: Issuance timestamp (seconds since Unix epoch)."
-        
+        "issued_at" : "string: Issuance timestamp (seconds since Unix epoch)."     
     }
+}
 ```
 
