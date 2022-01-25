@@ -1,0 +1,29 @@
+@startuml IoTEdge Identity Manager
+
+cloud {
+[IoTHub]
+}
+
+package "identity manager" {
+[control API(3)]->[identity manager core(1)]
+[IoTHub client(2)] -up-> [IoTHub]
+[identity manager core(1)] -down-> [config parser(4)] 
+[identity manager core(1)] -down-> [secret parser(5)]
+[identity manager core(1)] -up-> [IoTHub client(2)]
+[identity manager core(1)] -down-> [identity plugin(6)]
+[identity plugin(6)] -right-> [in memory\nidentity store(7)]
+[identity manager core(1)]-up->[server plugin(8)] 
+[server plugin(8)]-left->[IoTEdge SPIFFE server(10)]
+[server plugin(8)]-[hidden]right->[IoTHub client(2)]
+}
+
+[config parser(4)] -down-> [config map(11)] 
+[secret parser(5)] -down-> [secrets(12)] 
+[server plugin(8)] -up-> [SPIRE server(9)]
+
+database {
+[identity plugin(6)] -down-> [identity store(13)]
+}
+
+
+@enduml

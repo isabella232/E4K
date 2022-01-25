@@ -1,0 +1,21 @@
+@startuml IoTEdge SPIFFE Agent
+database "Disk"
+database "Memory"
+
+frame "IoTEdgeSPIFFE Agent" {
+database "cache"  
+[Node attestation]
+[Workload attestation]
+[Node attestation]
+[Workload API]
+[Background\n tasks]
+[cache]-[hidden]down->[Node attestation]
+[Node attestation]-left->[Key plugin]
+[Key plugin] -down->[Disk]
+[Key plugin] -down->[Memory]
+}
+
+
+
+
+@enduml

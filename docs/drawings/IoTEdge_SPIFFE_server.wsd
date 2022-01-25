@@ -1,0 +1,26 @@
+@startuml IoTEdge SPIFFE Server
+database "HSM"
+database "Disk"
+database "SQL"
+database "Memory"
+
+frame "IoTEdgeSPIFFE Server" {
+
+[API SVIDs]-[hidden]left->[API Trust bundle]
+[API Trust bundle]-[hidden]left->[Node attestation]
+[Admin inputs]-left->[DataStore]
+[Admin inputs]-right->[Background\n tasks]
+[API Trust bundle] -down->[DataStore]
+[API SVIDs]-down->[Key plugin] 
+[API SVIDs]-down->[DataStore] 
+[Background\n tasks]-right->[Key plugin]
+[DataStore] --down->[SQL]
+[Key plugin] --down->[Disk]
+[Key plugin] --down->[HSM]
+[Key plugin] --down->[Memory]
+}
+
+
+
+
+@enduml
