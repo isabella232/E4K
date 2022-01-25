@@ -24,7 +24,7 @@ The background task represents background operations like regularly rotating the
 
 # Admin APIs
 ---
-## Create entries in IoTEdge SPIRE Server
+## Create entries
 Create entries that are entitled to SVIDs in IoTEdge SPIFFE 
 
 Server. Gives access to related workload to the workload API.
@@ -195,3 +195,39 @@ content-type: application/json
 ```
 ---
 # Server APIs
+---
+## Create and Get new JWTSVID
+Request the server to create a new JWTSVID, sign it and return it
+
+### Request
+```
+POST   /newJWTSVID
+```
+#### Request Body
+```
+{ 
+  "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+  "audience" : "string: list of audience for the JWT. At least one audience is required."
+}
+```
+### Response
+```
+201 CREATED
+
+content-type: application/json
+```
+### Response Body
+```
+{
+    "jwt_svid" : {
+        "token" : "string: Compact representation of the JWTSVID",
+        "spiffe_id" : {
+            "trust_domain" : "string: The trust domain",
+            "path" : "string: The path component of the SPIFFE ID"
+        },
+        "expires_at" : "string: Expiration timestamp (seconds since Unix epoch).",
+        "issued_at" : "string: Issuance timestamp (seconds since Unix epoch)."
+        
+    }
+```
+
