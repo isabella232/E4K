@@ -193,3 +193,5 @@ POST   /configuration
 
 content-type: application/json
 ```
+---
+# Server APIs
