@@ -230,4 +230,41 @@ content-type: application/json
     }
 }
 ```
+---
+## Get Trust Bundle
+Gets the bundle for the trust domain of the server.
 
+### Request
+```
+POST   /bundle
+```
+#### Request Body
+```
+{ 
+  "options" : {
+    "jwt_keys" : "bool: If true jwt_keys are included"
+    "x509_cas": "bool: If true x509_cas are included"
+  }
+}
+```
+### Response
+```
+200 OK
+
+content-type: application/json
+```
+### Response Body
+```
+{
+    "bundle" : {
+        "trust_domain" : "string: The trust domain",
+        "jwt_keys" : { (keys to authenticate the JWT => JWK)
+            "public_key" : "byte: The PKIX encoded public key.",
+            "key_id" : "string: The key identifier.",
+            "expires_at" : "int64: Expiry time in seconds since Unix epoch",
+        }.
+        "refresh_hint" : "int64: How often the trust bundle should be refreshed, in second",
+        "sequence_number" : "uint64: The sequence number of the bundle." 
+    }
+}
+```
