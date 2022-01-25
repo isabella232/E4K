@@ -1,0 +1,14 @@
+[workspace]
+members = [
+	"serverd",
+	"common-admin-api",
+	"server-config",
+	"admin-api",
+	"catalog",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
