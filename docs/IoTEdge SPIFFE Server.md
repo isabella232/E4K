@@ -225,8 +225,8 @@ content-type: application/json
             "trust_domain" : "string: The trust domain",
             "path" : "string: The path component of the SPIFFE ID"
         },
-        "expires_at" : "string: Expiration timestamp (seconds since Unix epoch).",
-        "issued_at" : "string: Issuance timestamp (seconds since Unix epoch)."     
+        "expires_at" : "int64: Expiration timestamp (seconds since Unix epoch).",
+        "issued_at" : "int64: Issuance timestamp (seconds since Unix epoch)."     
     }
 }
 ```
