@@ -258,11 +258,18 @@ content-type: application/json
 {
     "bundle" : {
         "trust_domain" : "string: The trust domain",
-        "jwt_keys" : { (keys to authenticate the JWT => JWK)
+        "jwt_keys" : [{ (Optional, keys to authenticate the JWT => JWK)
             "public_key" : "byte: The PKIX encoded public key.",
             "key_id" : "string: The key identifier.",
             "expires_at" : "int64: Expiry time in seconds since Unix epoch",
-        }.
+        },
+        ...
+        ],
+        "x509_cas" : [{(Optional)
+            "bytes" : "bytes : The ASN.1 DER encoded bytes of the X.509 certificate"
+        },
+        ...
+        ],
         "refresh_hint" : "int64: How often the trust bundle should be refreshed, in second",
         "sequence_number" : "uint64: The sequence number of the bundle." 
     }
