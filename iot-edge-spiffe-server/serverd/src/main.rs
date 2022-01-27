@@ -46,6 +46,7 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
     let catalog = catalog::load_catalog();
 
     admin_api::start_admin_api(&config, catalog).await?;
+    server_api::start_server_api(&config).await?;
 
     Ok(())
 }

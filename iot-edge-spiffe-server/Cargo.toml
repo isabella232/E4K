@@ -2,8 +2,10 @@
 members = [
 	"serverd",
 	"common-admin-api",
+	"common-server-api",
 	"server-config",
 	"admin-api",
+	"server-api",
 	"catalog",
 ]
 

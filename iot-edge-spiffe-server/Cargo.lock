@@ -116,6 +116,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-server-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,6 +821,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "server-api"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "catalog",
+ "common-server-api",
+ "futures-util",
+ "http",
+ "http-common",
+ "hyper",
+ "log",
+ "serde",
+ "serde_json",
+ "server-config",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "server-config"
 version = "0.1.0"
 dependencies = [
@@ -829,6 +856,7 @@ dependencies = [
  "futures-util",
  "log",
  "logger",
+ "server-api",
  "server-config",
  "tokio",
 ]
