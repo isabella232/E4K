@@ -26,6 +26,7 @@ pub fn load_catalog() -> Box<dyn Catalog + Send + Sync> {
 pub trait Catalog: Sync + Send {
     async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, Error>;
     async fn create_registration_entry(&mut self, entry: RegistrationEntry) -> Result<(), Error>;
+    async fn update_registration_entry(&mut self, entry: RegistrationEntry) -> Result<(), Error>;
     async fn delete_registration_entry(&mut self, id: &str) -> Result<(), Error>;
     async fn list_registration_entries(
         &self,

@@ -18,7 +18,7 @@ impl http_common::server::Route for Route {
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
         _extensions: &http::Extensions,
     ) -> Option<Self> {
-        if path != crate::uri::CREATE_DELETE_REGISTRATION_ENTRIES {
+        if path != crate::uri::CREATE_DELETE_UPDATE_REGISTRATION_ENTRIES {
             return None;
         }
         Some(Route {
@@ -58,5 +58,14 @@ impl http_common::server::Route for Route {
         Ok(res)
     }
 
-    type PutBody = serde::de::IgnoredAny;
+    type PutBody = common_admin_api::update_registration_entries::Request;
+    async fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse {
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
+        let res = api.update_registration_entries(body).await;
+
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+
+        Ok(res)
+    }
 }

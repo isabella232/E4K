@@ -14,7 +14,7 @@
 use catalog::Catalog;
 use common_admin_api::{
     create_registration_entries, delete_registration_entries, list_registration_entries, operation,
-    select_list_registration_entries,
+    select_list_registration_entries, update_registration_entries,
 };
 use error::Error;
 use futures_util::lock::Mutex;
@@ -53,7 +53,7 @@ pub async fn start_admin_api(
 }
 
 pub mod uri {
-    pub const CREATE_DELETE_REGISTRATION_ENTRIES: &str = "/entries";
+    pub const CREATE_DELETE_UPDATE_REGISTRATION_ENTRIES: &str = "/entries";
     pub const LIST_REGISTRATION_ENTRIES: &str = "/listEntries";
     pub const SELECT_LIST_REGISTRATION_ENTRIES: &str = "/selectListEntries";
 }
@@ -88,6 +88,35 @@ impl Api {
         }
 
         let response = create_registration_entries::Response { results };
+
+        response
+    }
+
+    pub async fn update_registration_entries(
+        &mut self,
+        req: update_registration_entries::Request,
+    ) -> update_registration_entries::Response {
+        let mut results = Vec::new();
+
+        for reg_entry in req.entries {
+            let id = reg_entry.id.clone();
+
+            let result = self.catalog.create_registration_entry(reg_entry).await;
+            let result = match result {
+                Ok(_) => Ok(id),
+                Err(err) => Err(operation::Error {
+                    id,
+                    error: operation::Status::EntryDoNotExist(format!(
+                        "Error while creating entry: {}",
+                        err
+                    )),
+                }),
+            };
+
+            results.push(result);
+        }
+
+        let response = update_registration_entries::Response { results };
 
         response
     }

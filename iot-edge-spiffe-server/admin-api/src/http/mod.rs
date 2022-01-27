@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-mod create_delete_registration_entries;
+mod create_delete_update_registration_entries;
 mod list_registration_entries;
 mod select_list_registration_entries;
 
@@ -13,7 +13,7 @@ http_common::make_service! {
     service: Service,
     api_version: common_admin_api::ApiVersion,
     routes: [
-        create_delete_registration_entries::Route,
+        create_delete_update_registration_entries::Route,
         list_registration_entries::Route,
         select_list_registration_entries::Route,
     ],

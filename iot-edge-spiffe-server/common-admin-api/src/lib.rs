@@ -49,6 +49,20 @@ pub mod create_registration_entries {
     }
 }
 
+pub mod update_registration_entries {
+    use crate::{operation, RegistrationEntry};
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        pub entries: Vec<RegistrationEntry>,
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Response {
+        pub results: Vec<Result<String, operation::Error>>,
+    }
+}
+
 pub mod list_registration_entries {
     use crate::RegistrationEntry;
 
@@ -116,6 +130,12 @@ pub struct RegistrationEntry {
     #[serde(default)]
     pub parent_id: Option<String>,
     pub selectors: Vec<String>,
+    pub admin: bool,
+    pub ttl: i32,
+    pub expires_at: i64,
+    pub dns_names: Vec<String>,
+    pub revision_number: i64,
+    pub store_svid: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

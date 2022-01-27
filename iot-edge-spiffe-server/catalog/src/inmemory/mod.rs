@@ -34,6 +34,22 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
+    async fn update_registration_entry(
+        &mut self,
+        entry: RegistrationEntry,
+    ) -> Result<(), crate::Error> {
+        if self.entries_list.contains_key(&entry.id) {
+            self.entries_list.insert(entry.id.clone(), entry);
+        } else {
+            return Err(crate::Error::EntryDoNotExist(format!(
+                "Cannot update entry {}, it does not exist",
+                entry.id
+            )));
+        }
+
+        Ok(())
+    }
+
     async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, crate::Error> {
         let entry = self.entries_list.get(id);
 
@@ -113,6 +129,12 @@ mod tests {
             spiffe_id: String::from("spiffe id"),
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            admin: false,
+            ttl: 0,
+            expires_at: 0,
+            dns_names: Vec::new(),
+            revision_number: 0,
+            store_svid: false,
         };
         let catalog = InMemoryCatalog::new();
 

@@ -25,9 +25,8 @@ The background task represents background operations like regularly rotating the
 # Admin APIs
 ---
 ## Create entries
-Create entries that are entitled to SVIDs in IoTEdge SPIFFE 
-
-Server. Gives access to related workload to the workload API.
+Create entries that are entitled to SVIDs in IoTEdge SPIFFE Server. 
+Gives access to related workload to the workload API.
 ### Request
 ```
 POST   /entries
@@ -45,7 +44,12 @@ POST   /entries
           }
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...]
+          "selectors" : ["string: selector1", "string: selector2", "...],
+          "admin" : "bool: Admin workload",
+          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "dns_names" : ["string: used for crafting certificate"],
+          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
     ]
@@ -54,6 +58,54 @@ POST   /entries
 ### Response
 ```
 201 CREATED
+
+content-type: application/json
+```
+### Response Body
+```
+{
+    "results" : [ 
+        { 
+          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "status" : "Error Status"
+        },
+        ...
+    ]
+}
+```
+## Update entries
+Update entries in the IoTEdge SPIFFE Server
+### Request
+```
+PUT   /entries
+```
+#### Request Body
+```
+{
+    "entries" : [ 
+        { 
+          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "iot_hub_id" : { (Optional)
+            "iot_hub_hostname" : "string: IoTHub hostname",
+            "device_id" : "string: device id",
+            "module_id" : "string: module id"
+          }
+          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
+          "selectors" : ["string: selector1", "string: selector2", "...],
+          "admin" : "bool: Admin workload",
+          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "dns_names" : ["string: used for crafting certificate"],
+          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
+        },
+        ...
+    ]
+}
+```
+### Response
+```
+200 OK
 
 content-type: application/json
 ```
@@ -127,11 +179,26 @@ content-type: application/json
 ```
 ### Response Body
 ```
- { 
-    "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-    "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-    "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-    "selectors" : ["string: selector1", "string: selector2", "...]
+{
+    "entries" : [ 
+        { 
+          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "iot_hub_id" : { (Optional)
+            "iot_hub_hostname" : "string: IoTHub hostname",
+            "device_id" : "string: device id",
+            "module_id" : "string: module id"
+          }
+          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
+          "selectors" : ["string: selector1", "string: selector2", "...],
+          "admin" : "bool: Admin workload",
+          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "dns_names" : ["string: used for crafting certificate"],
+          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
+        },
+        ...
+    ]
 }
 ```
 ---
@@ -161,9 +228,19 @@ content-type: application/json
     "entries" : [ 
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "iot_hub_id" : { (Optional)
+            "iot_hub_hostname" : "string: IoTHub hostname",
+            "device_id" : "string: device id",
+            "module_id" : "string: module id"
+          }
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "string: Optional, who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...]
+          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
+          "selectors" : ["string: selector1", "string: selector2", "...],
+          "admin" : "bool: Admin workload",
+          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "dns_names" : ["string: used for crafting certificate"],
+          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
     ],

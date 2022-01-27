@@ -87,8 +87,8 @@ pub struct Settings {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Bundle {
     pub trust_domain: String,
-    pub jwt_keys: Option<Vec<JWK>>,
-    pub x509_cas: Option<Vec<Vec<u8>>>,
+    pub jwt_keys: Vec<JWK>,
+    pub x509_cas: Vec<Vec<u8>>,
     pub refresh_hint: i64,
     pub sequence_number: i64,
 }

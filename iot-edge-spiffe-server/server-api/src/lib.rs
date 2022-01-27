@@ -81,8 +81,8 @@ impl Api {
         get_trust_bundle::Response {
             bundle: Bundle {
                 trust_domain: "dummy".to_string(),
-                jwt_keys: None,
-                x509_cas: None,
+                jwt_keys: Vec::new(),
+                x509_cas: Vec::new(),
                 refresh_hint: 0,
                 sequence_number: 0,
             },
