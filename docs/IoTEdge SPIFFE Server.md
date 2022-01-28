@@ -212,8 +212,8 @@ POST   /listEntries
 #### Request Body
 ```
 {
-    "page_size" : "uint64: The maximum number of results to return."
-    "page_number" "optional uint64: The next_page_token value returned from a previous request, if any."
+    "page_size" : "uint32: The maximum number of results to return."
+    "page_number" "optional uint32: The next_page_token value returned from a previous request, if any."
 }
 ```
 ### Response
@@ -244,7 +244,7 @@ content-type: application/json
         },
         ...
     ],
-    "page_number" "optional uint64: The next_page_token if any page left."    
+    "page_number" "optional uint32: The next_page_token if any page left."    
 }
 ```
 
