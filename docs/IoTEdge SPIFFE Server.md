@@ -244,7 +244,7 @@ content-type: application/json
         },
         ...
     ],
-    "page_number" "int32: The next_page_token if any page left."    
+    "page_number" "optional int32: The next_page_token if any page left."    
 }
 ```
 
