@@ -77,7 +77,7 @@ impl Api {
                 Ok(_) => Ok(id),
                 Err(err) => Err(operation::Error {
                     id,
-                    error: operation::Status::DuplicateEntry(format!(
+                    error: operation::Status::DuplicatedEntry(format!(
                         "Error while creating entry: {}",
                         err
                     )),
@@ -101,7 +101,7 @@ impl Api {
         for reg_entry in req.entries {
             let id = reg_entry.id.clone();
 
-            let result = self.catalog.create_registration_entry(reg_entry).await;
+            let result = self.catalog.update_registration_entry(reg_entry).await;
             let result = match result {
                 Ok(_) => Ok(id),
                 Err(err) => Err(operation::Error {
@@ -149,9 +149,18 @@ impl Api {
         &self,
         req: list_registration_entries::Request,
     ) -> Result<list_registration_entries::Response, Error> {
+        let page_size: usize = req
+            .page_size
+            .try_into()
+            .map_err(|_| Error::InvalidArguments("Page size is too big".to_string()))?;
+        let page_number: usize = req
+            .page_number
+            .try_into()
+            .map_err(|_| Error::InvalidArguments("Page size is too big".to_string()))?;
+
         let (entries, next_page_number) = match self
             .catalog
-            .list_registration_entries(req.page_number, req.page_size)
+            .list_registration_entries(page_number, page_size)
             .await
         {
             Ok(resp) => resp,
@@ -163,6 +172,8 @@ impl Api {
             }
         };
 
+        let next_page_number =
+            next_page_number.map(|x| u32::try_from(x).expect("Cannot convert back to u32"));
         let response = list_registration_entries::Response {
             entries,
             next_page_number,
@@ -195,5 +206,242 @@ impl Api {
         let response = delete_registration_entries::Response { results };
 
         response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_admin_api::RegistrationEntry;
+
+    fn init() -> (Api, Vec<RegistrationEntry>) {
+        let catalog = catalog::load_catalog();
+
+        let api = Api { catalog };
+
+        let entry = RegistrationEntry {
+            id: String::from("id"),
+            iot_hub_id: None,
+            spiffe_id: String::from("spiffe id"),
+            parent_id: None,
+            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            admin: false,
+            ttl: 0,
+            expires_at: 0,
+            dns_names: Vec::new(),
+            revision_number: 0,
+            store_svid: false,
+        };
+        let entries = vec![entry];
+
+        (api, entries)
+    }
+
+    #[tokio::test]
+    pub async fn create_registration_entries_test_happy_path() {
+        let (mut api, entries) = init();
+
+        let req = create_registration_entries::Request { entries };
+
+        let res = api.create_registration_entries(req).await;
+
+        for res in res.results {
+            assert!(res.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    pub async fn create_registration_entries_test_error_path() {
+        let (mut api, entries) = init();
+
+        let req = create_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let _res = api.create_registration_entries(req).await;
+
+        let req = create_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let res = api.create_registration_entries(req).await;
+
+        for res in res.results {
+            let res = res.unwrap_err();
+            assert_eq!(res.id, "id".to_string());
+            if let operation::Status::DuplicatedEntry(_) = res.error {
+            } else {
+                panic!("Wrong error type returned for create_registration_entry")
+            };
+        }
+    }
+
+    #[tokio::test]
+    pub async fn update_registration_entries_test_happy_path() {
+        let (mut api, entries) = init();
+
+        let req = create_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let _res = api.create_registration_entries(req).await;
+
+        let req = update_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let res = api.update_registration_entries(req).await;
+
+        for res in res.results {
+            assert!(res.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    pub async fn update_registration_entries_test_error_path() {
+        let (mut api, entries) = init();
+
+        let req = update_registration_entries::Request { entries };
+
+        let res = api.update_registration_entries(req).await;
+        for res in res.results {
+            let res = res.unwrap_err();
+            assert_eq!(res.id, "id".to_string());
+            if let operation::Status::EntryDoNotExist(_) = res.error {
+            } else {
+                panic!("Wrong error type returned for create_registration_entry")
+            };
+        }
+    }
+
+    #[tokio::test]
+    pub async fn delete_registration_entries_test_happy_path() {
+        let (mut api, entries) = init();
+
+        let mut ids = Vec::new();
+        for entry in &entries {
+            ids.push(entry.id.clone());
+        }
+        let req = create_registration_entries::Request { entries };
+
+        let _res = api.create_registration_entries(req).await;
+        let req = delete_registration_entries::Request { ids };
+        let res = api.delete_registration_entries(req).await;
+
+        for res in res.results {
+            assert!(res.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    pub async fn delete_registration_entries_test_error_path() {
+        let (mut api, entries) = init();
+
+        let mut ids = Vec::new();
+        for _entry in &entries {
+            ids.push("dummy".to_string());
+        }
+        let req = create_registration_entries::Request { entries };
+
+        let _res = api.create_registration_entries(req).await;
+        let req = delete_registration_entries::Request { ids };
+        let res = api.delete_registration_entries(req).await;
+
+        for res in res.results {
+            let res = res.unwrap_err();
+            assert_eq!(res.id, "dummy".to_string());
+            if let operation::Status::EntryDoNotExist(_) = res.error {
+            } else {
+                panic!("Wrong error type returned for create_registration_entry")
+            };
+        }
+    }
+
+    #[tokio::test]
+    pub async fn list_registration_entries_test_happy_path() {
+        let (mut api, mut entries) = init();
+        let entry2 = RegistrationEntry {
+            id: String::from("id2"),
+            iot_hub_id: None,
+            spiffe_id: String::from("spiffe id"),
+            parent_id: None,
+            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            admin: false,
+            ttl: 0,
+            expires_at: 0,
+            dns_names: Vec::new(),
+            revision_number: 0,
+            store_svid: false,
+        };
+        entries.push(entry2);
+
+        let req = create_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let _res = api.create_registration_entries(req).await;
+
+        let req = list_registration_entries::Request {
+            page_size: 1,
+            page_number: 0,
+        };
+
+        let res = api.list_registration_entries(req).await.unwrap();
+        if (res.entries[0].id != "id") && (res.entries[0].id != "id2") {
+            panic!("Invalid entry");
+        }
+        assert_eq!(res.entries.len(), 1);
+        assert_eq!(res.next_page_number, Some(1));
+
+        let req = list_registration_entries::Request {
+            page_size: 1,
+            page_number: 1,
+        };
+        let res = api.list_registration_entries(req).await.unwrap();
+        if (res.entries[0].id != "id") && (res.entries[0].id != "id2") {
+            panic!("Invalid entry");
+        }
+        assert_eq!(res.entries.len(), 1);
+        assert_eq!(res.next_page_number, None);
+    }
+
+    #[tokio::test]
+    pub async fn list_registration_entries_test_error_path() {
+        let (mut api, mut entries) = init();
+        let entry2 = RegistrationEntry {
+            id: String::from("id2"),
+            iot_hub_id: None,
+            spiffe_id: String::from("spiffe id"),
+            parent_id: None,
+            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            admin: false,
+            ttl: 0,
+            expires_at: 0,
+            dns_names: Vec::new(),
+            revision_number: 0,
+            store_svid: false,
+        };
+        entries.push(entry2);
+
+        let req = create_registration_entries::Request {
+            entries: entries.clone(),
+        };
+        let _res = api.create_registration_entries(req).await;
+
+        let req = list_registration_entries::Request {
+            page_size: 0,
+            page_number: 0,
+        };
+        let res = api.list_registration_entries(req).await.unwrap_err();
+
+        if let Error::CatalogError(_) = res {
+        } else {
+            panic!("Wrong error type returned for list_registration_entries")
+        };
+
+        let req = list_registration_entries::Request {
+            page_size: 1,
+            page_number: 2,
+        };
+        let res = api.list_registration_entries(req).await.unwrap_err();
+        if let Error::CatalogError(_) = res {
+        } else {
+            panic!("Wrong error type returned for list_registration_entries")
+        };
     }
 }

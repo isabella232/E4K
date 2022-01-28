@@ -13,13 +13,13 @@
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
-    V2020_09_01,
+    V2022_06_01,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            ApiVersion::V2020_09_01 => "2020-09-01",
+            ApiVersion::V2022_06_01 => "2020-09-01",
         })
     }
 }
@@ -29,7 +29,7 @@ impl std::str::FromStr for ApiVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "2020-09-01" => Ok(ApiVersion::V2020_09_01),
+            "2020-09-01" => Ok(ApiVersion::V2022_06_01),
             _ => Err(()),
         }
     }
@@ -68,14 +68,14 @@ pub mod list_registration_entries {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
-        pub page_size: i32,
-        pub page_number: i32,
+        pub page_size: u32,
+        pub page_number: u32,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
         pub entries: Vec<RegistrationEntry>,
-        pub next_page_number: i32,
+        pub next_page_number: Option<u32>,
     }
 }
 
@@ -116,7 +116,7 @@ pub mod operation {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub enum Status {
-        DuplicateEntry(String),
+        DuplicatedEntry(String),
         EntryDoNotExist(String),
     }
 }
@@ -131,10 +131,10 @@ pub struct RegistrationEntry {
     pub parent_id: Option<String>,
     pub selectors: Vec<String>,
     pub admin: bool,
-    pub ttl: i32,
-    pub expires_at: i64,
+    pub ttl: u64,
+    pub expires_at: u64,
     pub dns_names: Vec<String>,
-    pub revision_number: i64,
+    pub revision_number: u64,
     pub store_svid: bool,
 }
 

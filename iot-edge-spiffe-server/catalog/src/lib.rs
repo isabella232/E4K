@@ -30,7 +30,7 @@ pub trait Catalog: Sync + Send {
     async fn delete_registration_entry(&mut self, id: &str) -> Result<(), Error>;
     async fn list_registration_entries(
         &self,
-        page_number: i32,
-        page_size: i32,
-    ) -> Result<(Vec<RegistrationEntry>, i32), Error>;
+        page_number: usize,
+        page_size: usize,
+    ) -> Result<(Vec<RegistrationEntry>, Option<usize>), Error>;
 }

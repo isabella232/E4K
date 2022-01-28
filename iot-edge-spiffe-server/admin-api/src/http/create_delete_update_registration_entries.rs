@@ -8,7 +8,7 @@ pub(super) struct Route {
 impl http_common::server::Route for Route {
     type ApiVersion = common_admin_api::ApiVersion;
     fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
-        &((common_admin_api::ApiVersion::V2020_09_01)..)
+        &((common_admin_api::ApiVersion::V2022_06_01)..)
     }
 
     type Service = super::Service;

@@ -13,13 +13,13 @@
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
-    V2020_09_01,
+    V2022_06_01,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            ApiVersion::V2020_09_01 => "2020-09-01",
+            ApiVersion::V2022_06_01 => "2020-09-01",
         })
     }
 }
@@ -29,7 +29,7 @@ impl std::str::FromStr for ApiVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "2020-09-01" => Ok(ApiVersion::V2020_09_01),
+            "2020-09-01" => Ok(ApiVersion::V2022_06_01),
             _ => Err(()),
         }
     }
@@ -68,8 +68,8 @@ pub mod get_trust_bundle {
 pub struct JWTSVID {
     pub token: String,
     pub spiffe_id: SPIFFEID,
-    pub expire_at: i64,
-    pub issued_at: i64,
+    pub expire_at: u64,
+    pub issued_at: u64,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -89,13 +89,13 @@ pub struct Bundle {
     pub trust_domain: String,
     pub jwt_keys: Vec<JWK>,
     pub x509_cas: Vec<Vec<u8>>,
-    pub refresh_hint: i64,
-    pub sequence_number: i64,
+    pub refresh_hint: u64,
+    pub sequence_number: u64,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct JWK {
     pub public_key: Vec<u8>,
     pub key_id: String,
-    pub expires_at: i64,
+    pub expires_at: u64,
 }
