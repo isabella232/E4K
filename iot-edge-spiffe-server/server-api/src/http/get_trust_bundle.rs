@@ -1,48 +1,91 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::borrow::Cow;
+
+use common_server_api::{get_trust_bundle, ApiVersion};
+use http::{Extensions, StatusCode};
+use http_common::{server, DynRangeBounds};
+use serde::de::IgnoredAny;
+
+use crate::{uri, Api};
+
 pub(super) struct Route {
-    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    x509_cas: Option<String>,
+    jwt_keys: Option<String>,
+    api: Api,
 }
 
 #[async_trait::async_trait]
-impl http_common::server::Route for Route {
-    type ApiVersion = common_server_api::ApiVersion;
-    fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
-        &((common_server_api::ApiVersion::V2022_06_01)..)
+impl server::Route for Route {
+    type ApiVersion = ApiVersion;
+    type DeleteBody = IgnoredAny;
+    type PostBody = IgnoredAny;
+    type Service = super::Service;
+    type PutBody = IgnoredAny;
+
+    fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion> {
+        &((ApiVersion::V2022_06_01)..)
     }
 
-    type Service = super::Service;
     fn from_uri(
         service: &Self::Service,
         path: &str,
-        _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-        _extensions: &http::Extensions,
+        query: &[(Cow<'_, str>, Cow<'_, str>)],
+        _extensions: &Extensions,
     ) -> Option<Self> {
-        if path != crate::uri::GET_TRUST_BUNDLE {
+        if path != uri::GET_TRUST_BUNDLE {
             return None;
         }
+
+        let mut x509_cas: Option<String> = None;
+        let mut jwt_keys: Option<String> = None;
+
+        for q in query.iter() {
+            x509_cas = if q.0 == "x509_cas" {
+                Some(q.1.to_string())
+            } else {
+                None
+            };
+
+            jwt_keys = if q.0 == "jwt_keys" {
+                Some(q.1.to_string())
+            } else {
+                None
+            };
+        }
+
         Some(Route {
+            x509_cas,
+            jwt_keys,
             api: service.api.clone(),
         })
     }
 
-    type DeleteBody = serde::de::IgnoredAny;
+    async fn get(self) -> server::RouteResponse {
+        let jwt_keys = if let Some(jwt_keys) = self.jwt_keys {
+            jwt_keys.parse::<bool>().map_err(|_| server::Error {
+                status_code: StatusCode::BAD_REQUEST,
+                message: "Could not convert jwt_keys to bool".into(),
+            })?
+        } else {
+            false
+        };
 
-    type PostBody = common_server_api::get_trust_bundle::Request;
-    async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
-        let body = body.ok_or_else(|| http_common::server::Error {
-            status_code: http::StatusCode::BAD_REQUEST,
-            message: "missing request body".into(),
-        })?;
+        let x509_cas = if let Some(x509_cas) = self.x509_cas {
+            x509_cas.parse::<bool>().map_err(|_| server::Error {
+                status_code: StatusCode::BAD_REQUEST,
+                message: "Could not convert x509_cas to bool".into(),
+            })?
+        } else {
+            false
+        };
 
-        let mut api = self.api.lock().await;
-        let api = &mut *api;
-        let res = api.get_trust_bundle(body).await;
+        let params = get_trust_bundle::Params { jwt_keys, x509_cas };
 
-        let res = http_common::server::response::json(hyper::StatusCode::CREATED, &res);
+        let res = self.api.get_trust_bundle(params).await;
+
+        let res = server::response::json(StatusCode::CREATED, &res);
 
         Ok(res)
     }
-
-    type PutBody = serde::de::IgnoredAny;
 }

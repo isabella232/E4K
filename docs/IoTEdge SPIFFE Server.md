@@ -24,12 +24,57 @@ The background task represents background operations like regularly rotating the
 
 # Admin APIs
 ---
+## Get entries
+Get all entries. Because of possible flood of entried, results are paginated.
+### Request
+```
+GET   /entries?api-version=2022_06_01&page_size={uint32}&page_token={string}
+```
+
+#### Params
+```
+page_size : uint32: The maximum number of results to return.
+page_token: optional string: The page token
+```
+### Response
+```
+200 OK
+
+content-type: application/json
+```
+### Response Body
+```
+{
+    "entries" : [ 
+        { 
+          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "iot_hub_id" : { (Optional)
+            "iot_hub_hostname" : "string: IoTHub hostname",
+            "device_id" : "string: device id",
+            "module_id" : "string: module id"
+          }
+          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
+          "selectors" : ["string: selector1", "string: selector2", "...],
+          "ttl" : "uint64, svid time to live",
+          "admin" : "bool: Admin workload",
+          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
+          "dns_names" : ["string: used for crafting certificate"],
+          "revision_number" : "uint64: version number of the entrie, bump when updated",
+          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
+        },
+        ...
+    ],
+    "page_token" "optional string: The page token. None if no more pages"    
+}
+```
+---
 ## Create entries
 Create entries that are entitled to SVIDs in IoTEdge SPIFFE Server. 
 Gives access to related workload to the workload API.
 ### Request
 ```
-POST   /entries
+POST   /entries?api-version=2022_06_01
 ```
 #### Request Body
 ```
@@ -45,6 +90,7 @@ POST   /entries
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
+          "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
@@ -77,7 +123,7 @@ content-type: application/json
 Update entries in the IoTEdge SPIFFE Server
 ### Request
 ```
-PUT   /entries
+PUT   /entries?api-version=2022_06_01
 ```
 #### Request Body
 ```
@@ -93,6 +139,7 @@ PUT   /entries
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
+          "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
@@ -127,7 +174,7 @@ content-type: application/json
 Delete entries in the IoTEdge SPIFFE Server. Deleting an entry will revoke access of the related workload to the workload API.
 ### Request
 ```
-DEL   /entries
+DEL   /entries?api-version=2022_06_01
 ```
 #### Request Body
 ```
@@ -146,11 +193,8 @@ content-type: application/json
 {
     "results" : [ 
         { 
-          "id" : "Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "status" : {
-              "error_code": "string",
-              "error_message": "optional string"
-          }
+          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
+          "status" : "Error Status"
         },
         ...
     ]
@@ -162,7 +206,7 @@ content-type: application/json
 Get the entries specified in the request.
 ### Request
 ```
-POST   /selectListEntries
+POST   /select-listEntries?api-version=2022_06_01
 ```
 
 #### Request Body
@@ -191,6 +235,7 @@ content-type: application/json
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
+          "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
@@ -202,58 +247,11 @@ content-type: application/json
 }
 ```
 ---
-## List entries
-Get all entries. Because of possible flood of entried, results are paginated.
-### Request
-```
-POST   /listEntries
-```
-
-#### Request Body
-```
-{
-    "page_size" : "uint32: The maximum number of results to return."
-    "page_number" "optional uint32: The next_page_token value returned from a previous request, if any."
-}
-```
-### Response
-```
-200 OK
-
-content-type: application/json
-```
-### Response Body
-```
-{
-    "entries" : [ 
-        { 
-          "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "iot_hub_id" : { (Optional)
-            "iot_hub_hostname" : "string: IoTHub hostname",
-            "device_id" : "string: device id",
-            "module_id" : "string: module id"
-          }
-          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...],
-          "admin" : "bool: Admin workload",
-          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
-          "dns_names" : ["string: used for crafting certificate"],
-          "revision_number" : "uint64: version number of the entrie, bump when updated",
-          "store_svid" : "bool: Determines if the issued identity is exportable to a store"
-        },
-        ...
-    ],
-    "page_number" "optional uint32: The next_page_token if any page left."    
-}
-```
-
----
 ## Configure IoTEdge SPIRE Server
 Configure SPIRE server. Configuring again will remove existing configuration.
 ### Request
 ```
-POST   /configuration
+POST   /configuration?api-version=2022_06_01
 ```
 #### Request Body
 ```
@@ -278,7 +276,7 @@ Request the server to create a new JWTSVID, sign it and return it
 
 ### Request
 ```
-POST   /newJWTSVID
+POST   /new-JWT-SVID?api-version=2022_06_01
 ```
 #### Request Body
 ```
@@ -313,16 +311,12 @@ Gets the bundle for the trust domain of the server.
 
 ### Request
 ```
-POST   /bundle
+GET   /trust-bundle?api-version=2022_06_01&jwt_keys={bool}&x509_cas={bool}
 ```
-#### Request Body
+#### Params
 ```
-{ 
-  "options" : {
-    "jwt_keys" : "bool: If true jwt_keys are included"
-    "x509_cas": "bool: If true x509_cas are included"
-  }
-}
+jwt_keys : bool: If true jwt_keys are included"
+x509_cas: "bool: If true x509_cas are included"
 ```
 ### Response
 ```

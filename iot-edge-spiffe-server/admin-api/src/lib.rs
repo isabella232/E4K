@@ -14,13 +14,12 @@
 use catalog::Catalog;
 use common_admin_api::{
     create_registration_entries, delete_registration_entries, list_registration_entries, operation,
-    select_list_registration_entries, update_registration_entries,
+    select_get_registration_entries, update_registration_entries,
 };
 use error::Error;
-use futures_util::lock::Mutex;
 use http_common::Connector;
 use server_config::Config;
-use std::{io, sync::Arc};
+use std::{io, path::Path, sync::Arc};
 
 mod error;
 mod http;
@@ -29,15 +28,14 @@ const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
 pub async fn start_admin_api(
     config: &Config,
-    catalog: Box<dyn Catalog + Send + Sync>,
+    catalog: Arc<dyn Catalog + Send + Sync>,
 ) -> Result<(), io::Error> {
     let api = Api { catalog };
 
-    let api = Arc::new(Mutex::new(api));
     let service = http::Service { api };
 
     let connector = Connector::Unix {
-        socket_path: std::path::Path::new(&config.socket_path).into(),
+        socket_path: Path::new(&config.socket_path).into(),
     };
 
     let mut incoming = connector.incoming(SOCKET_DEFAULT_PERMISSION, None).await?;
@@ -54,17 +52,18 @@ pub async fn start_admin_api(
 
 pub mod uri {
     pub const CREATE_DELETE_UPDATE_REGISTRATION_ENTRIES: &str = "/entries";
-    pub const LIST_REGISTRATION_ENTRIES: &str = "/listEntries";
-    pub const SELECT_LIST_REGISTRATION_ENTRIES: &str = "/selectListEntries";
+    pub const LIST_REGISTRATION_ENTRIES: &str = "/list-entries";
+    pub const SELECT_GET_REGISTRATION_ENTRIES: &str = "/select-list-entries";
 }
 
+#[derive(Clone)]
 struct Api {
-    catalog: Box<dyn Catalog + Send + Sync>,
+    catalog: Arc<dyn Catalog + Send + Sync>,
 }
 
 impl Api {
     pub async fn create_registration_entries(
-        &mut self,
+        &self,
         req: create_registration_entries::Request,
     ) -> create_registration_entries::Response {
         let mut results = Vec::new();
@@ -93,7 +92,7 @@ impl Api {
     }
 
     pub async fn update_registration_entries(
-        &mut self,
+        &self,
         req: update_registration_entries::Request,
     ) -> update_registration_entries::Response {
         let mut results = Vec::new();
@@ -123,8 +122,8 @@ impl Api {
 
     pub async fn select_list_registration_entries(
         &self,
-        req: select_list_registration_entries::Request,
-    ) -> select_list_registration_entries::Response {
+        req: select_get_registration_entries::Request,
+    ) -> select_get_registration_entries::Response {
         let mut results = Vec::new();
 
         for id in req.ids {
@@ -140,27 +139,23 @@ impl Api {
             results.push(result);
         }
 
-        let response = select_list_registration_entries::Response { results };
+        let response = select_get_registration_entries::Response { results };
 
         response
     }
 
     pub async fn list_registration_entries(
         &self,
-        req: list_registration_entries::Request,
+        params: list_registration_entries::Params,
     ) -> Result<list_registration_entries::Response, Error> {
-        let page_size: usize = req
+        let page_size: usize = params
             .page_size
             .try_into()
             .map_err(|_| Error::InvalidArguments("Page size is too big".to_string()))?;
-        let page_number: usize = req
-            .page_number
-            .try_into()
-            .map_err(|_| Error::InvalidArguments("Page size is too big".to_string()))?;
 
-        let (entries, next_page_number) = match self
+        let (entries, next_page_token) = match self
             .catalog
-            .list_registration_entries(page_number, page_size)
+            .list_registration_entries(params.page_token, page_size)
             .await
         {
             Ok(resp) => resp,
@@ -172,18 +167,16 @@ impl Api {
             }
         };
 
-        let next_page_number =
-            next_page_number.map(|x| u32::try_from(x).expect("Cannot convert back to u32"));
         let response = list_registration_entries::Response {
             entries,
-            next_page_number,
+            next_page_token,
         };
 
         Ok(response)
     }
 
     pub async fn delete_registration_entries(
-        &mut self,
+        &self,
         req: delete_registration_entries::Request,
     ) -> delete_registration_entries::Response {
         let mut results = Vec::new();
@@ -239,7 +232,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn create_registration_entries_test_happy_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let req = create_registration_entries::Request { entries };
 
@@ -252,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn create_registration_entries_test_error_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let req = create_registration_entries::Request {
             entries: entries.clone(),
@@ -276,7 +269,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn update_registration_entries_test_happy_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let req = create_registration_entries::Request {
             entries: entries.clone(),
@@ -295,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn update_registration_entries_test_error_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let req = update_registration_entries::Request { entries };
 
@@ -312,7 +305,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn delete_registration_entries_test_happy_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let mut ids = Vec::new();
         for entry in &entries {
@@ -331,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn delete_registration_entries_test_error_path() {
-        let (mut api, entries) = init();
+        let (api, entries) = init();
 
         let mut ids = Vec::new();
         for _entry in &entries {
@@ -355,7 +348,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn list_registration_entries_test_happy_path() {
-        let (mut api, mut entries) = init();
+        let (api, mut entries) = init();
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             iot_hub_id: None,
@@ -376,33 +369,41 @@ mod tests {
         };
         let _res = api.create_registration_entries(req).await;
 
-        let req = list_registration_entries::Request {
+        let req = list_registration_entries::Params {
             page_size: 1,
-            page_number: 0,
+            page_token: None,
         };
 
         let res = api.list_registration_entries(req).await.unwrap();
-        if (res.entries[0].id != "id") && (res.entries[0].id != "id2") {
+        if res.entries[0].id != "id" {
             panic!("Invalid entry");
         }
         assert_eq!(res.entries.len(), 1);
-        assert_eq!(res.next_page_number, Some(1));
+        assert_eq!(res.next_page_token, Some("id2".to_string()));
 
-        let req = list_registration_entries::Request {
+        let req = list_registration_entries::Params {
             page_size: 1,
-            page_number: 1,
+            page_token: Some("id2".to_string()),
         };
         let res = api.list_registration_entries(req).await.unwrap();
-        if (res.entries[0].id != "id") && (res.entries[0].id != "id2") {
+        if res.entries[0].id != "id2" {
             panic!("Invalid entry");
         }
         assert_eq!(res.entries.len(), 1);
-        assert_eq!(res.next_page_number, None);
+        assert_eq!(res.next_page_token, None);
+
+        let req = list_registration_entries::Params {
+            page_size: 1,
+            page_token: Some("j".to_string()),
+        };
+        let res = api.list_registration_entries(req).await.unwrap();
+        assert_eq!(res.entries.len(), 0);
+        assert_eq!(res.next_page_token, None);
     }
 
     #[tokio::test]
     pub async fn list_registration_entries_test_error_path() {
-        let (mut api, mut entries) = init();
+        let (api, mut entries) = init();
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             iot_hub_id: None,
@@ -423,9 +424,9 @@ mod tests {
         };
         let _res = api.create_registration_entries(req).await;
 
-        let req = list_registration_entries::Request {
+        let req = list_registration_entries::Params {
             page_size: 0,
-            page_number: 0,
+            page_token: None,
         };
         let res = api.list_registration_entries(req).await.unwrap_err();
 
@@ -433,15 +434,44 @@ mod tests {
         } else {
             panic!("Wrong error type returned for list_registration_entries")
         };
+    }
 
-        let req = list_registration_entries::Request {
-            page_size: 1,
-            page_number: 2,
+    #[tokio::test]
+    pub async fn select_list_registration_entries_test_happy_path() {
+        let (api, mut entries) = init();
+        let entry2 = RegistrationEntry {
+            id: String::from("id2"),
+            iot_hub_id: None,
+            spiffe_id: String::from("spiffe id"),
+            parent_id: None,
+            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            admin: false,
+            ttl: 0,
+            expires_at: 0,
+            dns_names: Vec::new(),
+            revision_number: 0,
+            store_svid: false,
         };
-        let res = api.list_registration_entries(req).await.unwrap_err();
-        if let Error::CatalogError(_) = res {
-        } else {
-            panic!("Wrong error type returned for list_registration_entries")
-        };
+        entries.push(entry2);
+
+        let req = create_registration_entries::Request { entries };
+
+        let _res = api.create_registration_entries(req).await;
+
+        let ids = vec!["id".to_string(), "id2".to_string()];
+        let req = select_get_registration_entries::Request { ids };
+        let res = api.select_list_registration_entries(req).await;
+        let results = res.results;
+
+        assert_eq!(2, results.len());
+        for res in results {
+            assert!(res.is_ok());
+        }
+
+        let ids = vec!["id".to_string()];
+        let req = select_get_registration_entries::Request { ids };
+        let res = api.select_list_registration_entries(req).await;
+        let results = res.results;
+        assert_eq!(1, results.len());
     }
 }

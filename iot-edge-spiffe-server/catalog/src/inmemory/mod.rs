@@ -1,17 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::collections::HashMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use common_admin_api::RegistrationEntry;
+use futures_util::lock::Mutex;
 
 pub struct InMemoryCatalog {
-    entries_list: std::collections::HashMap<String, RegistrationEntry>,
+    entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
 }
 
 impl InMemoryCatalog {
     pub fn new() -> Self {
         InMemoryCatalog {
-            entries_list: HashMap::new(),
+            entries_list: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 }
@@ -19,27 +20,31 @@ impl InMemoryCatalog {
 #[async_trait::async_trait]
 impl crate::Catalog for InMemoryCatalog {
     async fn create_registration_entry(
-        &mut self,
+        &self,
         entry: RegistrationEntry,
     ) -> Result<(), crate::Error> {
-        if self.entries_list.contains_key(&entry.id) {
+        let mut entries_list = self.entries_list.lock().await;
+
+        if entries_list.contains_key(&entry.id) {
             return Err(crate::Error::DuplicatedEntry(format!(
                 "Entry {} already exist",
                 entry.id
             )));
         }
 
-        self.entries_list.insert(entry.id.clone(), entry);
+        entries_list.insert(entry.id.clone(), entry);
 
         Ok(())
     }
 
     async fn update_registration_entry(
-        &mut self,
+        &self,
         entry: RegistrationEntry,
     ) -> Result<(), crate::Error> {
-        if self.entries_list.contains_key(&entry.id) {
-            self.entries_list.insert(entry.id.clone(), entry);
+        let mut entries_list = self.entries_list.lock().await;
+
+        if entries_list.contains_key(&entry.id) {
+            entries_list.insert(entry.id.clone(), entry);
         } else {
             return Err(crate::Error::EntryDoNotExist(format!(
                 "Cannot update entry {}, it does not exist",
@@ -51,7 +56,9 @@ impl crate::Catalog for InMemoryCatalog {
     }
 
     async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, crate::Error> {
-        let entry = self.entries_list.get(id);
+        let entries_list = self.entries_list.lock().await;
+
+        let entry = entries_list.get(id);
 
         if let Some(entry) = entry {
             Ok(entry.clone())
@@ -65,12 +72,13 @@ impl crate::Catalog for InMemoryCatalog {
 
     async fn list_registration_entries(
         &self,
-        page_number: usize,
+        page_token: Option<String>,
         page_size: usize,
-    ) -> Result<(Vec<RegistrationEntry>, Option<usize>), crate::Error> {
+    ) -> Result<(Vec<RegistrationEntry>, Option<String>), crate::Error> {
+        let entries_list = self.entries_list.lock().await;
+
         let mut response: Vec<RegistrationEntry> = Vec::new();
         let mut entry_counter = 0;
-        let mut current_page = 0;
 
         if page_size == 0 {
             return Err(crate::Error::InvalidArguments(
@@ -78,38 +86,32 @@ impl crate::Catalog for InMemoryCatalog {
             ));
         }
 
-        let last_page = (self.entries_list.len() - 1) / page_size;
+        let mut iterator: Box<dyn Iterator<Item = (&String, &RegistrationEntry)>> =
+            if let Some(page_token) = page_token {
+                Box::new(entries_list.range(page_token..))
+            } else {
+                Box::new(entries_list.iter())
+            };
 
-        if last_page < page_number {
-            return Err(crate::Error::InvalidArguments(
-                "Page number too high".to_string(),
-            ));
-        }
-
-        for entry in self.entries_list.values() {
-            if current_page == page_number {
-                response.push(entry.clone());
-            }
-
+        for (_id, entry) in &mut iterator {
+            response.push(entry.clone());
             entry_counter += 1;
-            current_page = entry_counter / page_size;
-            if current_page > page_number {
+
+            if entry_counter >= page_size {
                 break;
             }
         }
 
-        let next_page = if last_page == page_number {
-            None
-        } else {
-            Some(page_number + 1)
-        };
+        let page_token = iterator.next().map(|x| x.0.clone());
 
-        Ok((response, next_page))
+        Ok((response, page_token))
     }
 
-    async fn delete_registration_entry(&mut self, id: &str) -> Result<(), crate::Error> {
-        if self.entries_list.contains_key(id) {
-            self.entries_list.remove(id);
+    async fn delete_registration_entry(&self, id: &str) -> Result<(), crate::Error> {
+        let mut entries_list = self.entries_list.lock().await;
+
+        if entries_list.contains_key(id) {
+            entries_list.remove(id);
         } else {
             return Err(crate::Error::EntryDoNotExist(format!(
                 "Entry {} do not exist",
@@ -150,7 +152,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_registration_entry_test_happy_path() {
-        let (mut catalog, entry) = init();
+        let (catalog, entry) = init();
 
         let res = catalog.create_registration_entry(entry).await;
 
@@ -159,7 +161,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_registration_entry_test_duplicate_entry() {
-        let (mut catalog, entry) = init();
+        let (catalog, entry) = init();
 
         let _res = catalog.create_registration_entry(entry.clone()).await;
         let res = catalog.create_registration_entry(entry).await.unwrap_err();
@@ -172,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_registration_entry_test_happy_path() {
-        let (mut catalog, entry) = init();
+        let (catalog, entry) = init();
 
         let _res = catalog.create_registration_entry(entry.clone()).await;
         let res = catalog.update_registration_entry(entry).await;
@@ -182,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_registration_entry_test_entry_not_exist() {
-        let (mut catalog, entry) = init();
+        let (catalog, entry) = init();
 
         let res = catalog.update_registration_entry(entry).await.unwrap_err();
 
@@ -194,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_registration_entry_test_happy_path() {
-        let (mut catalog, entry) = init();
+        let (catalog, entry) = init();
 
         let _res = catalog.create_registration_entry(entry.clone()).await;
         let res = catalog.get_registration_entry(&entry.id).await;

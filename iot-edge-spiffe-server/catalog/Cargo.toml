@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-
+futures-util = "0.3"
+thiserror = "1.0.24"
 
 common-admin-api = { path = "../common-admin-api" }
 server-config = { path = "../server-config" }

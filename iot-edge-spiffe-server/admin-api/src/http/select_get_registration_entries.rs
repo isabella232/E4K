@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
-
-use common_server_api::{create_new_jwt, ApiVersion};
+use crate::{uri, Api};
+use common_admin_api::{select_get_registration_entries, ApiVersion};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
 use std::borrow::Cow;
-
-use crate::{uri, Api};
 
 pub(super) struct Route {
     api: Api,
@@ -17,7 +15,7 @@ impl server::Route for Route {
     type ApiVersion = ApiVersion;
     type Service = super::Service;
     type DeleteBody = IgnoredAny;
-    type PostBody = create_new_jwt::Request;
+    type PostBody = select_get_registration_entries::Request;
     type PutBody = IgnoredAny;
 
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion> {
@@ -30,7 +28,7 @@ impl server::Route for Route {
         _query: &[(Cow<'_, str>, Cow<'_, str>)],
         _extensions: &Extensions,
     ) -> Option<Self> {
-        if path != uri::CREATE_NEW_JTW {
+        if path != uri::SELECT_GET_REGISTRATION_ENTRIES {
             return None;
         }
         Some(Route {
@@ -44,9 +42,9 @@ impl server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let res = self.api.create_new_jwt(body).await;
+        let res = self.api.select_list_registration_entries(body).await;
 
-        let res = server::response::json(StatusCode::CREATED, &res);
+        let res = server::response::json(StatusCode::OK, &res);
 
         Ok(res)
     }

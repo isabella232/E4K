@@ -1,17 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub enum Error {
-    DuplicatedEntry(String),
-    EntryDoNotExist(String),
-    InvalidArguments(String),
-}
+use thiserror::Error;
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::DuplicatedEntry(message)
-            | Error::EntryDoNotExist(message)
-            | Error::InvalidArguments(message) => f.write_str(message),
-        }
-    }
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    DuplicatedEntry(String),
+    #[error("{0}")]
+    EntryDoNotExist(String),
+    #[error("{0}")]
+    InvalidArguments(String),
 }

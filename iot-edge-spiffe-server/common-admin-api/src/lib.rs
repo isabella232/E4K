@@ -11,20 +11,22 @@
     clippy::too_many_lines
 )]
 
+use std::{fmt, str};
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2022_06_01,
 }
 
-impl std::fmt::Display for ApiVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ApiVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             ApiVersion::V2022_06_01 => "2020-09-01",
         })
     }
 }
 
-impl std::str::FromStr for ApiVersion {
+impl str::FromStr for ApiVersion {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -66,20 +68,19 @@ pub mod update_registration_entries {
 pub mod list_registration_entries {
     use crate::RegistrationEntry;
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub struct Request {
+    pub struct Params {
         pub page_size: u32,
-        pub page_number: u32,
+        pub page_token: Option<String>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
         pub entries: Vec<RegistrationEntry>,
-        pub next_page_number: Option<u32>,
+        pub next_page_token: Option<String>,
     }
 }
 
-pub mod select_list_registration_entries {
+pub mod select_get_registration_entries {
     use crate::{operation, RegistrationEntry};
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]

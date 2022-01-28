@@ -1,13 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
+use thiserror::Error;
 
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("{0}")]
     DummyError(String),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::DummyError(message) => f.write_str(message),
-        }
-    }
 }

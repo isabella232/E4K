@@ -51,11 +51,11 @@ pub mod create_new_jwt {
 }
 
 pub mod get_trust_bundle {
-    use crate::{Bundle, Settings};
+    use crate::Bundle;
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub struct Request {
-        pub id: Settings,
+    pub struct Params {
+        pub jwt_keys: bool,
+        pub x509_cas: bool,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -76,12 +76,6 @@ pub struct JWTSVID {
 pub struct SPIFFEID {
     pub trust_domain: String,
     pub path: String,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct Settings {
-    pub jwt_keys: bool,
-    pub x509_cas: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

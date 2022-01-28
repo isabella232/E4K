@@ -14,7 +14,6 @@
 use std::error::Error as StdError;
 
 use error::Error;
-use log::LevelFilter;
 use server_config::Config;
 
 const CONFIG_DEFAULT_PATH: &str = "../Config.toml";
@@ -25,7 +24,7 @@ mod error;
 async fn main() {
     logger::try_init()
         .expect("cannot fail to initialize global logger from the process entrypoint");
-    log::set_max_level(LevelFilter::Info);
+
     log::info!("Starting IoTEdge SPIFFE Server");
     if let Err(err) = main_inner().await {
         log::error!("{}", err);

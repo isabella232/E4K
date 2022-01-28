@@ -11,14 +11,16 @@
     clippy::too_many_lines
 )]
 
+use std::{fs, io, path::Path};
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     pub socket_path: String,
 }
 
 impl Config {
-    pub fn load_config(filename: impl AsRef<std::path::Path>) -> Result<Config, std::io::Error> {
-        let config = std::fs::read_to_string(&filename)?;
+    pub fn load_config(filename: impl AsRef<Path>) -> Result<Config, io::Error> {
+        let config = fs::read_to_string(&filename)?;
 
         let config = toml::from_str(&config)?;
 

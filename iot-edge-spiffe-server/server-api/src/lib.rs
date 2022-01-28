@@ -13,10 +13,9 @@
 
 use common_server_api::{create_new_jwt, get_trust_bundle, Bundle, JWTSVID, SPIFFEID};
 use error::Error;
-use futures_util::lock::Mutex;
 use http_common::Connector;
 use server_config::Config;
-use std::{io, sync::Arc};
+use std::io;
 
 mod error;
 mod http;
@@ -26,7 +25,6 @@ const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 pub async fn start_server_api(config: &Config) -> Result<(), io::Error> {
     let api = Api {};
 
-    let api = Arc::new(Mutex::new(api));
     let service = http::Service { api };
 
     let connector = Connector::Unix {
@@ -46,17 +44,15 @@ pub async fn start_server_api(config: &Config) -> Result<(), io::Error> {
 }
 
 pub mod uri {
-    pub const CREATE_NEW_JTW: &str = "/newJWTSVID";
-    pub const GET_TRUST_BUNDLE: &str = "/bundle";
+    pub const CREATE_NEW_JTW: &str = "/new-JWT-SVID";
+    pub const GET_TRUST_BUNDLE: &str = "/trust-bundle";
 }
 
+#[derive(Clone)]
 struct Api {}
 
 impl Api {
-    pub async fn create_new_jwt(
-        &mut self,
-        _req: create_new_jwt::Request,
-    ) -> create_new_jwt::Response {
+    pub async fn create_new_jwt(&self, _req: create_new_jwt::Request) -> create_new_jwt::Response {
         let _dummy = Error::DummyError("test".to_string());
 
         // Create dummy response
@@ -74,8 +70,8 @@ impl Api {
     }
 
     pub async fn get_trust_bundle(
-        &mut self,
-        _req: get_trust_bundle::Request,
+        &self,
+        _params: get_trust_bundle::Params,
     ) -> get_trust_bundle::Response {
         // Create dummy response
         get_trust_bundle::Response {
