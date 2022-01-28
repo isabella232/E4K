@@ -46,9 +46,9 @@ POST   /entries
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
           "admin" : "bool: Admin workload",
-          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
-          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "revision_number" : "uint64: version number of the entrie, bump when updated",
           "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
@@ -94,9 +94,9 @@ PUT   /entries
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
           "admin" : "bool: Admin workload",
-          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
-          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "revision_number" : "uint64: version number of the entrie, bump when updated",
           "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
@@ -192,9 +192,9 @@ content-type: application/json
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
           "admin" : "bool: Admin workload",
-          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
-          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "revision_number" : "uint64: version number of the entrie, bump when updated",
           "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
@@ -212,8 +212,8 @@ POST   /listEntries
 #### Request Body
 ```
 {
-    "page_size" : "int32: The maximum number of results to return."
-    "page_number" "optional int32: The next_page_token value returned from a previous request, if any."
+    "page_size" : "uint32: The maximum number of results to return."
+    "page_number" "optional uint32: The next_page_token value returned from a previous request, if any."
 }
 ```
 ### Response
@@ -237,14 +237,14 @@ content-type: application/json
           "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
           "selectors" : ["string: selector1", "string: selector2", "...],
           "admin" : "bool: Admin workload",
-          "expires_at" : "int64: seconds since Unix epoch, when the entry expires",
+          "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
           "dns_names" : ["string: used for crafting certificate"],
-          "revision_number" : "int64: version number of the entrie, bump when updated",
+          "revision_number" : "uint64: version number of the entrie, bump when updated",
           "store_svid" : "bool: Determines if the issued identity is exportable to a store"
         },
         ...
     ],
-    "page_number" "int32: The next_page_token if any page left."    
+    "page_number" "optional uint32: The next_page_token if any page left."    
 }
 ```
 
@@ -302,8 +302,8 @@ content-type: application/json
             "trust_domain" : "string: The trust domain",
             "path" : "string: The path component of the SPIFFE ID"
         },
-        "expires_at" : "int64: Expiration timestamp (seconds since Unix epoch).",
-        "issued_at" : "int64: Issuance timestamp (seconds since Unix epoch)."     
+        "expires_at" : "uint64: Expiration timestamp (seconds since Unix epoch).",
+        "issued_at" : "uint64: Issuance timestamp (seconds since Unix epoch)."     
     }
 }
 ```
@@ -338,7 +338,7 @@ content-type: application/json
         "jwt_keys" : [{ (Optional, keys to authenticate the JWT => JWK)
             "public_key" : "byte: The PKIX encoded public key.",
             "key_id" : "string: The key identifier.",
-            "expires_at" : "int64: Expiry time in seconds since Unix epoch",
+            "expires_at" : "uint64: Expiry time in seconds since Unix epoch",
         },
         ...
         ],
@@ -347,7 +347,7 @@ content-type: application/json
         },
         ...
         ],
-        "refresh_hint" : "int64: How often the trust bundle should be refreshed, in second",
+        "refresh_hint" : "uint64: How often the trust bundle should be refreshed, in second",
         "sequence_number" : "uint64: The sequence number of the bundle." 
     }
 }
