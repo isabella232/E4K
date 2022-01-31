@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use common_server_api::{create_new_jwt, ApiVersion};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
+use server_agent_api::{create_new_jwt, ApiVersion};
 use std::borrow::Cow;
 
 use crate::{uri, Api};

@@ -4,16 +4,15 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     clippy::default_trait_access,
-    clippy::let_and_return,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
     clippy::too_many_lines
 )]
 
-use common_server_api::{create_new_jwt, get_trust_bundle, Bundle, JWTSVID, SPIFFEID};
 use error::Error;
 use http_common::Connector;
+use server_agent_api::{create_new_jwt, get_trust_bundle, Bundle, JWTSVID, SPIFFEID};
 use server_config::Config;
 use std::io;
 

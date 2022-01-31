@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
-use common_server_api::ApiVersion;
 use http_common::make_service;
+use server_agent_api::ApiVersion;
 
 use crate::Api;
 

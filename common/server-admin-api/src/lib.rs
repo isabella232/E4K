@@ -4,7 +4,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     clippy::default_trait_access,
-    clippy::let_and_return,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
@@ -112,23 +111,15 @@ pub mod operation {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Error {
         pub id: String,
-        pub error: Status,
-    }
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub enum Status {
-        DuplicatedEntry(String),
-        EntryDoNotExist(String),
+        pub error: String,
     }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct RegistrationEntry {
     pub id: String,
-    #[serde(default)]
     pub iot_hub_id: Option<IoTHubId>,
     pub spiffe_id: String,
-    #[serde(default)]
     pub parent_id: Option<String>,
     pub selectors: Vec<String>,
     pub admin: bool,

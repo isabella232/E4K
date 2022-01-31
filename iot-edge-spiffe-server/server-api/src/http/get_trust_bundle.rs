@@ -2,10 +2,10 @@
 
 use std::borrow::Cow;
 
-use common_server_api::{get_trust_bundle, ApiVersion};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
+use server_agent_api::{get_trust_bundle, ApiVersion};
 
 use crate::{uri, Api};
 

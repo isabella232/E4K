@@ -21,9 +21,3 @@ logger = { git = "https://github.com/Azure/iot-identity-service" }
 
 [features]
 tests = []
-
-
-
-
-
-

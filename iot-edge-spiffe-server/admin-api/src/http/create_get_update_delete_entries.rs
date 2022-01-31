@@ -6,23 +6,27 @@
 use std::borrow::Cow;
 
 use crate::{uri, Api};
-use common_admin_api::{
+use catalog::Catalog;
+use http::{Extensions, StatusCode};
+use http_common::{server, DynRangeBounds};
+use server_admin_api::{
     create_registration_entries, delete_registration_entries, list_registration_entries,
     update_registration_entries, ApiVersion,
 };
-use http::{Extensions, StatusCode};
-use http_common::{server, DynRangeBounds};
 
-pub(super) struct Route {
+pub(super) struct Route<C: Catalog + Send + Sync> {
     page_size: Option<String>,
     page_token: Option<String>,
-    api: Api,
+    api: Api<C>,
 }
 
 #[async_trait::async_trait]
-impl server::Route for Route {
+impl<C> server::Route for Route<C>
+where
+    C: Catalog + Send + Sync,
+{
     type ApiVersion = ApiVersion;
-    type Service = super::Service;
+    type Service = super::Service<C>;
     type DeleteBody = delete_registration_entries::Request;
     type PostBody = create_registration_entries::Request;
     type PutBody = update_registration_entries::Request;

@@ -1,5 +1,5 @@
 [package]
-name = "common-admin-api"
+name = "server-agent-api"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 license = "MIT"

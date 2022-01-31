@@ -4,14 +4,13 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     clippy::default_trait_access,
-    clippy::let_and_return,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
     clippy::too_many_lines
 )]
 
-use std::error::Error as StdError;
+use std::{error::Error as StdError, sync::Arc};
 
 use error::Error;
 use server_config::Config;
@@ -42,7 +41,7 @@ async fn main() {
 async fn main_inner() -> Result<(), Box<dyn StdError>> {
     let config = Config::load_config(CONFIG_DEFAULT_PATH).map_err(Error::ErrorParsingConfig)?;
 
-    let catalog = catalog::load_catalog();
+    let catalog = Arc::new(catalog::inmemory::InMemoryCatalog::new());
 
     admin_api::start_admin_api(&config, catalog).await?;
     server_api::start_server_api(&config).await?;

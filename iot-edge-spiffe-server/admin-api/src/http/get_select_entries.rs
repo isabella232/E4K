@@ -1,19 +1,23 @@
 // Copyright (c) Microsoft. All rights reserved.
 use crate::{uri, Api};
-use common_admin_api::{select_get_registration_entries, ApiVersion};
+use catalog::Catalog;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
+use server_admin_api::{select_get_registration_entries, ApiVersion};
 use std::borrow::Cow;
 
-pub(super) struct Route {
-    api: Api,
+pub(super) struct Route<C: Catalog + Send + Sync> {
+    api: Api<C>,
 }
 
 #[async_trait::async_trait]
-impl server::Route for Route {
+impl<C> server::Route for Route<C>
+where
+    C: Catalog + Send + Sync,
+{
     type ApiVersion = ApiVersion;
-    type Service = super::Service;
+    type Service = super::Service<C>;
     type DeleteBody = IgnoredAny;
     type PostBody = select_get_registration_entries::Request;
     type PutBody = IgnoredAny;

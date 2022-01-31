@@ -1,15 +1,19 @@
 // Copyright (c) Microsoft. All rights reserved.
+mod error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use common_admin_api::RegistrationEntry;
 use futures_util::lock::Mutex;
+use server_admin_api::RegistrationEntry;
+
+use self::error::Error;
 
 pub struct InMemoryCatalog {
     entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
 }
 
 impl InMemoryCatalog {
+    #[must_use]
     pub fn new() -> Self {
         InMemoryCatalog {
             entries_list: Arc::new(Mutex::new(BTreeMap::new())),
@@ -17,19 +21,21 @@ impl InMemoryCatalog {
     }
 }
 
+impl Default for InMemoryCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait::async_trait]
 impl crate::Catalog for InMemoryCatalog {
-    async fn create_registration_entry(
-        &self,
-        entry: RegistrationEntry,
-    ) -> Result<(), crate::Error> {
+    type Error = crate::inmemory::Error;
+
+    async fn create_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock().await;
 
         if entries_list.contains_key(&entry.id) {
-            return Err(crate::Error::DuplicatedEntry(format!(
-                "Entry {} already exist",
-                entry.id
-            )));
+            return Err(Error::DuplicatedEntry(entry.id));
         }
 
         entries_list.insert(entry.id.clone(), entry);
@@ -37,25 +43,19 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn update_registration_entry(
-        &self,
-        entry: RegistrationEntry,
-    ) -> Result<(), crate::Error> {
+    async fn update_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock().await;
 
-        if entries_list.contains_key(&entry.id) {
-            entries_list.insert(entry.id.clone(), entry);
-        } else {
-            return Err(crate::Error::EntryDoNotExist(format!(
-                "Cannot update entry {}, it does not exist",
-                entry.id
-            )));
-        }
+        let entry_ptr = entries_list
+            .get_mut(&entry.id)
+            .ok_or_else(|| Error::EntryNotFound(entry.id.clone()))?;
+
+        *entry_ptr = entry;
 
         Ok(())
     }
 
-    async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, crate::Error> {
+    async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, Self::Error> {
         let entries_list = self.entries_list.lock().await;
 
         let entry = entries_list.get(id);
@@ -63,10 +63,7 @@ impl crate::Catalog for InMemoryCatalog {
         if let Some(entry) = entry {
             Ok(entry.clone())
         } else {
-            Err(crate::Error::EntryDoNotExist(format!(
-                "Entry {} do not exist",
-                id
-            )))
+            Err(Error::EntryNotFound(id.to_string()))
         }
     }
 
@@ -74,16 +71,14 @@ impl crate::Catalog for InMemoryCatalog {
         &self,
         page_token: Option<String>,
         page_size: usize,
-    ) -> Result<(Vec<RegistrationEntry>, Option<String>), crate::Error> {
+    ) -> Result<(Vec<RegistrationEntry>, Option<String>), Self::Error> {
         let entries_list = self.entries_list.lock().await;
 
         let mut response: Vec<RegistrationEntry> = Vec::new();
         let mut entry_counter = 0;
 
         if page_size == 0 {
-            return Err(crate::Error::InvalidArguments(
-                "Invalid page size".to_string(),
-            ));
+            return Err(Error::InvalidPageSize());
         }
 
         let mut iterator: Box<dyn Iterator<Item = (&String, &RegistrationEntry)>> =
@@ -107,16 +102,13 @@ impl crate::Catalog for InMemoryCatalog {
         Ok((response, page_token))
     }
 
-    async fn delete_registration_entry(&self, id: &str) -> Result<(), crate::Error> {
+    async fn delete_registration_entry(&self, id: &str) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock().await;
 
         if entries_list.contains_key(id) {
             entries_list.remove(id);
         } else {
-            return Err(crate::Error::EntryDoNotExist(format!(
-                "Entry {} do not exist",
-                id
-            )));
+            return Err(Error::EntryNotFound(id.to_string()));
         }
 
         Ok(())
@@ -125,13 +117,13 @@ impl crate::Catalog for InMemoryCatalog {
 
 #[cfg(test)]
 mod tests {
-    use common_admin_api::RegistrationEntry;
+    use server_admin_api::RegistrationEntry;
 
-    use crate::{error::Error, Catalog};
+    use crate::Catalog;
 
     use super::*;
 
-    fn init() -> (Box<dyn Catalog>, RegistrationEntry) {
+    fn init() -> (InMemoryCatalog, RegistrationEntry) {
         let entry = RegistrationEntry {
             id: String::from("id"),
             iot_hub_id: None,
@@ -147,7 +139,7 @@ mod tests {
         };
         let catalog = InMemoryCatalog::new();
 
-        (Box::new(catalog), entry)
+        (catalog, entry)
     }
 
     #[tokio::test]
@@ -165,7 +157,6 @@ mod tests {
 
         let _res = catalog.create_registration_entry(entry.clone()).await;
         let res = catalog.create_registration_entry(entry).await.unwrap_err();
-
         if let Error::DuplicatedEntry(_) = res {
         } else {
             panic!("Wrong error type returned for create_registration_entry")
@@ -187,10 +178,9 @@ mod tests {
         let (catalog, entry) = init();
 
         let res = catalog.update_registration_entry(entry).await.unwrap_err();
-
-        if let Error::EntryDoNotExist(_) = res {
+        if let Error::EntryNotFound(_) = res {
         } else {
-            panic!("Wrong error type returned for create_registration_entry")
+            panic!("Wrong error type returned for update_registration_entry")
         };
     }
 
@@ -209,10 +199,9 @@ mod tests {
         let (catalog, entry) = init();
 
         let res = catalog.get_registration_entry(&entry.id).await.unwrap_err();
-
-        if let Error::EntryDoNotExist(_) = res {
+        if let Error::EntryNotFound(_) = res {
         } else {
-            panic!("Wrong error type returned for create_registration_entry")
+            panic!("Wrong error type returned for get_registration_entry")
         };
     }
 }

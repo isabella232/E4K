@@ -19,7 +19,7 @@ url = "2"
 
 catalog = { path = "../catalog" }
 server-config = { path = "../server-config" }
-common-server-api = { path = "../common-server-api" }
+server-agent-api = { path = "../../common/server-agent-api" }
 
 http-common = { git = "https://github.com/Azure/iot-identity-service" }
 

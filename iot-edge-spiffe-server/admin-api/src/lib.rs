@@ -4,7 +4,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     clippy::default_trait_access,
-    clippy::let_and_return,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
@@ -12,12 +11,12 @@
 )]
 
 use catalog::Catalog;
-use common_admin_api::{
+use error::Error;
+use http_common::Connector;
+use server_admin_api::{
     create_registration_entries, delete_registration_entries, list_registration_entries, operation,
     select_get_registration_entries, update_registration_entries,
 };
-use error::Error;
-use http_common::Connector;
 use server_config::Config;
 use std::{io, path::Path, sync::Arc};
 
@@ -26,13 +25,13 @@ mod http;
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
-pub async fn start_admin_api(
+pub async fn start_admin_api<C: Catalog + Send + Sync + 'static>(
     config: &Config,
-    catalog: Arc<dyn Catalog + Send + Sync>,
+    catalog: Arc<C>,
 ) -> Result<(), io::Error> {
     let api = Api { catalog };
 
-    let service = http::Service { api };
+    let service = http::Service { api: api.clone() };
 
     let connector = Connector::Unix {
         socket_path: Path::new(&config.socket_path).into(),
@@ -56,12 +55,28 @@ pub mod uri {
     pub const SELECT_GET_REGISTRATION_ENTRIES: &str = "/select-list-entries";
 }
 
-#[derive(Clone)]
-struct Api {
-    catalog: Arc<dyn Catalog + Send + Sync>,
+struct Api<C>
+where
+    C: Catalog + Send + Sync,
+{
+    catalog: Arc<C>,
 }
 
-impl Api {
+impl<C> Clone for Api<C>
+where
+    C: Catalog + Send + Sync,
+{
+    fn clone(&self) -> Self {
+        Self {
+            catalog: self.catalog.clone(),
+        }
+    }
+}
+
+impl<C> Api<C>
+where
+    C: Catalog + Send + Sync,
+{
     pub async fn create_registration_entries(
         &self,
         req: create_registration_entries::Request,
@@ -71,24 +86,20 @@ impl Api {
         for reg_entry in req.entries {
             let id = reg_entry.id.clone();
 
-            let result = self.catalog.create_registration_entry(reg_entry).await;
-            let result = match result {
-                Ok(_) => Ok(id),
-                Err(err) => Err(operation::Error {
+            let result = self
+                .catalog
+                .create_registration_entry(reg_entry)
+                .await
+                .map(|_| id.clone())
+                .map_err(|err| operation::Error {
                     id,
-                    error: operation::Status::DuplicatedEntry(format!(
-                        "Error while creating entry: {}",
-                        err
-                    )),
-                }),
-            };
+                    error: format!("Error while creating entry: {}", err),
+                });
 
             results.push(result);
         }
 
-        let response = create_registration_entries::Response { results };
-
-        response
+        create_registration_entries::Response { results }
     }
 
     pub async fn update_registration_entries(
@@ -100,24 +111,17 @@ impl Api {
         for reg_entry in req.entries {
             let id = reg_entry.id.clone();
 
-            let result = self.catalog.update_registration_entry(reg_entry).await;
-            let result = match result {
-                Ok(_) => Ok(id),
-                Err(err) => Err(operation::Error {
-                    id,
-                    error: operation::Status::EntryDoNotExist(format!(
-                        "Error while creating entry: {}",
-                        err
-                    )),
-                }),
-            };
+            let result = self
+                .catalog
+                .update_registration_entry(reg_entry)
+                .await
+                .map(|_| id.clone())
+                .map_err(|err| operation::Error::from(Error::UpdateEntry(Box::new(err), id)));
 
             results.push(result);
         }
 
-        let response = update_registration_entries::Response { results };
-
-        response
+        update_registration_entries::Response { results }
     }
 
     pub async fn select_list_registration_entries(
@@ -127,21 +131,16 @@ impl Api {
         let mut results = Vec::new();
 
         for id in req.ids {
-            let result = self.catalog.get_registration_entry(&id).await;
-            let result = result.map_err(|err| operation::Error {
-                id,
-                error: operation::Status::EntryDoNotExist(format!(
-                    "Error while getting entry: {}",
-                    err
-                )),
-            });
+            let result = self
+                .catalog
+                .get_registration_entry(&id)
+                .await
+                .map_err(|err| operation::Error::from(Error::GetEntry(Box::new(err), id)));
 
             results.push(result);
         }
 
-        let response = select_get_registration_entries::Response { results };
-
-        response
+        select_get_registration_entries::Response { results }
     }
 
     pub async fn list_registration_entries(
@@ -151,21 +150,13 @@ impl Api {
         let page_size: usize = params
             .page_size
             .try_into()
-            .map_err(|_| Error::InvalidArguments("Page size is too big".to_string()))?;
+            .map_err(|err| Error::InvalidPageSize(Box::new(err)))?;
 
-        let (entries, next_page_token) = match self
+        let (entries, next_page_token) = self
             .catalog
             .list_registration_entries(params.page_token, page_size)
             .await
-        {
-            Ok(resp) => resp,
-            Err(err) => {
-                return Err(Error::CatalogError(format!(
-                    "Error while listing registration entries: {}",
-                    err
-                )))
-            }
-        };
+            .map_err(|err| Error::ListEntry(Box::new(err)))?;
 
         let response = list_registration_entries::Response {
             entries,
@@ -182,33 +173,28 @@ impl Api {
         let mut results = Vec::new();
 
         for id in req.ids {
-            let result = self.catalog.delete_registration_entry(&id).await;
-            let result = match result {
-                Ok(_) => Ok(id),
-                Err(err) => Err(operation::Error {
-                    id,
-                    error: operation::Status::EntryDoNotExist(format!(
-                        "Error while removing entry: {}",
-                        err
-                    )),
-                }),
-            };
+            let result = self
+                .catalog
+                .delete_registration_entry(&id)
+                .await
+                .map(|_| id.clone())
+                .map_err(|err| operation::Error::from(Error::DeleteEntry(Box::new(err), id)));
+
             results.push(result);
         }
 
-        let response = delete_registration_entries::Response { results };
-
-        response
+        delete_registration_entries::Response { results }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_admin_api::RegistrationEntry;
+    use catalog::inmemory::InMemoryCatalog;
+    use server_admin_api::RegistrationEntry;
 
-    fn init() -> (Api, Vec<RegistrationEntry>) {
-        let catalog = catalog::load_catalog();
+    fn init() -> (Api<InMemoryCatalog>, Vec<RegistrationEntry>) {
+        let catalog = Arc::new(catalog::inmemory::InMemoryCatalog::new());
 
         let api = Api { catalog };
 
@@ -260,10 +246,6 @@ mod tests {
         for res in res.results {
             let res = res.unwrap_err();
             assert_eq!(res.id, "id".to_string());
-            if let operation::Status::DuplicatedEntry(_) = res.error {
-            } else {
-                panic!("Wrong error type returned for create_registration_entry")
-            };
         }
     }
 
@@ -296,10 +278,6 @@ mod tests {
         for res in res.results {
             let res = res.unwrap_err();
             assert_eq!(res.id, "id".to_string());
-            if let operation::Status::EntryDoNotExist(_) = res.error {
-            } else {
-                panic!("Wrong error type returned for create_registration_entry")
-            };
         }
     }
 
@@ -339,10 +317,6 @@ mod tests {
         for res in res.results {
             let res = res.unwrap_err();
             assert_eq!(res.id, "dummy".to_string());
-            if let operation::Status::EntryDoNotExist(_) = res.error {
-            } else {
-                panic!("Wrong error type returned for create_registration_entry")
-            };
         }
     }
 
@@ -428,12 +402,7 @@ mod tests {
             page_size: 0,
             page_token: None,
         };
-        let res = api.list_registration_entries(req).await.unwrap_err();
-
-        if let Error::CatalogError(_) = res {
-        } else {
-            panic!("Wrong error type returned for list_registration_entries")
-        };
+        let _res = api.list_registration_entries(req).await.unwrap_err();
     }
 
     #[tokio::test]
