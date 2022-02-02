@@ -10,10 +10,10 @@
     clippy::too_many_lines
 )]
 
-use std::{error::Error as StdError, sync::Arc};
-
+use std::{error::Error as StdError, sync::Arc, path::Path};
+use keys::PreferredAlgorithm::NistP256;
 use error::Error;
-use server_config::Config;
+use config::Config;
 
 const CONFIG_DEFAULT_PATH: &str = "../Config.toml";
 
@@ -43,6 +43,7 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     let catalog = Arc::new(catalog::inmemory::InMemoryCatalog::new());
 
+    keys::create_key_pair_if_not_exists(Path::new("./pk"), keys::PreferredAlgorithm::NistP256).unwrap();
     admin_api::start_admin_api(&config, catalog).await?;
     server_api::start_server_api(&config).await?;
 

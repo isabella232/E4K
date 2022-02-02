@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
+ "config",
  "futures-util",
  "http",
  "http-common",
@@ -16,7 +17,6 @@ dependencies = [
  "serde",
  "serde_json",
  "server-admin-api",
- "server-config",
  "thiserror",
  "tokio",
  "url",
@@ -60,6 +60,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "aziot-keys-common"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "pkcs11",
+ "url",
+]
+
+[[package]]
 name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,9 +100,9 @@ name = "catalog"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "config",
  "futures-util",
  "server-admin-api",
- "server-config",
  "thiserror",
  "tokio",
 ]
@@ -109,6 +118,14 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "toml",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -498,6 +515,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aab8fc367588b89dcee83ab0fd66b72b50b72fa1904d7095045ace2b0c81c35"
 
 [[package]]
+name = "keys"
+version = "0.1.0"
+dependencies = [
+ "aziot-keys-common",
+ "foreign-types-shared",
+ "log",
+ "logger",
+ "openssl",
+ "openssl-sys",
+ "openssl-sys2",
+ "openssl2",
+ "thiserror",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -659,6 +691,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-build"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -669,6 +709,28 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "openssl-sys2"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "openssl-build",
+ "openssl-sys",
+]
+
+[[package]]
+name = "openssl2"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "foreign-types",
+ "foreign-types-shared",
+ "openssl",
+ "openssl-build",
+ "openssl-sys",
+ "openssl-sys2",
 ]
 
 [[package]]
@@ -713,6 +775,28 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pkcs11"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "foreign-types-shared",
+ "lazy_static",
+ "libc",
+ "openssl",
+ "openssl-build",
+ "openssl-sys",
+ "openssl-sys2",
+ "openssl2",
+ "percent-encoding",
+ "pkcs11-sys",
+]
+
+[[package]]
+name = "pkcs11-sys"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
 
 [[package]]
 name = "pkg-config"
@@ -829,6 +913,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
+ "config",
  "futures-util",
  "http",
  "http-common",
@@ -837,18 +922,9 @@ dependencies = [
  "serde",
  "serde_json",
  "server-agent-api",
- "server-config",
  "thiserror",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "server-config"
-version = "0.1.0"
-dependencies = [
- "serde",
- "toml",
 ]
 
 [[package]]
@@ -857,11 +933,12 @@ version = "0.1.0"
 dependencies = [
  "admin-api",
  "catalog",
+ "config",
  "futures-util",
+ "keys",
  "log",
  "logger",
  "server-api",
- "server-config",
  "thiserror",
  "tokio",
 ]

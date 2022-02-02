@@ -17,11 +17,13 @@ pub enum Error {
     #[error("Openssl Error")]
     OpenSSL(),
     #[error("Failed to convert number to usize: {0}, {1}")]
-    ConvertToUsize(TryFromIntError, String),    
+    ConvertToUsize(TryFromIntError, String),
     #[error("Invalid parameters")]
     InvalidParameters(String),
     #[error("Unsupported Key pair type")]
     UnsupportedKeyPairType(),
+    #[error("Unsupported Mechanism type")]
+    UnsupportedMechanismType(),
 }
 
 impl From<openssl::error::Error> for Error {

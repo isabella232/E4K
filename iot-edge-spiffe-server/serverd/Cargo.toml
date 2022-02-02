@@ -15,7 +15,8 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 admin-api = { path = "../admin-api" }
 server-api = { path = "../server-api" }
 catalog = { path = "../catalog" }
-server-config = { path = "../server-config" }
+config = { path = "../config" }
+keys = { path = "../../common/keys" }
 
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 
