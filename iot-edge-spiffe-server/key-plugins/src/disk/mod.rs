@@ -275,9 +275,27 @@ mod tests {
 
         plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
 
+        let digest = "hello world".as_bytes();
+
+        let _signature= plugin.sign(&id,  Algorithm::ECP256, digest).await.unwrap();
 
         fs::remove_file(file).unwrap();        
     }     
 
+    #[tokio::test]
+    async fn get_sign_error_path() {
+        let plugin = init();
+
+        let id = Uuid::new_v4().to_string();
+
+        let digest = "hello world".as_bytes();
+
+        let error= plugin.sign(&id,  Algorithm::ECP256, digest).await.unwrap_err();
+
+        if let Error::KeyNotFound(_) = error {
+        } else {
+            panic!("Wrong error type returned for get_public_key")
+        };       
+    }        
 }
 
