@@ -102,7 +102,9 @@ dependencies = [
  "async-trait",
  "config",
  "futures-util",
+ "openssl",
  "server-admin-api",
+ "server-agent-api",
  "thiserror",
  "tokio",
 ]
@@ -526,7 +528,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aab8fc367588b89dcee83ab0fd66b72b50b72fa1904d7095045ace2b0c81c35"
 
 [[package]]
-name = "key-plugins"
+name = "key-manager"
+version = "0.1.0"
+dependencies = [
+ "key-store",
+ "log",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "key-store"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -950,7 +963,7 @@ dependencies = [
  "catalog",
  "config",
  "futures-util",
- "key-plugins",
+ "key-manager",
  "log",
  "logger",
  "server-api",

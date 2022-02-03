@@ -4,7 +4,8 @@ members = [
 	"config",
 	"admin-api",
 	"server-api",
-	"key-plugins",
+	"key-store",
+	"key-manager",
 	"catalog",
 ]
 

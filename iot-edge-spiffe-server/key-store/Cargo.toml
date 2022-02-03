@@ -1,5 +1,5 @@
 [package]
-name = "key-plugins"
+name = "key-store"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 license = "MIT"

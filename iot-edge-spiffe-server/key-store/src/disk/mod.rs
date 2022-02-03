@@ -11,18 +11,11 @@ pub mod error;
 
 use error::Error;
 
-use crate::KeyPlugin;
+use crate::{KeyPlugin, KeyType};
 
 struct KeyPair {
     public_key : pkey::PKey<pkey::Public>,
     private_key :PKey<pkey::Private>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Algorithm {
-    ECP256,
-    RSA2048,
-    RSA4096,
 }
 
 pub struct Plugin {
@@ -55,12 +48,12 @@ impl KeyPlugin for Plugin {
     async fn create_key_pair_if_not_exists(
         &self,
         id: &str,
-        algorithm: Algorithm,
+        key_type: KeyType,
     ) -> Result<(), Error> {
         let path = &self.get_key_path(id);
 
         if load_inner(path)?.is_none() {
-            create_inner(path, algorithm)?;
+            create_inner(path, key_type)?;
             if load_inner(path)?.is_none() {
                 return Err(Error::KeyNotFound(
                     "key created successfully but could not be found".to_string(),
@@ -74,7 +67,7 @@ impl KeyPlugin for Plugin {
     async fn sign(
         &self,
         id: &str,
-        algorithm: Algorithm,
+        key_type: KeyType,
         digest: &[u8],
     ) -> Result<(usize, Vec<u8>), Error> {
         let path = &self.get_key_path(id);
@@ -84,8 +77,8 @@ impl KeyPlugin for Plugin {
     
         let private_key = key_pair.private_key;
     
-        let result = match (algorithm, private_key.ec_key(), private_key.rsa()) {
-            (Algorithm::ECP256, Ok(ec_key), _) => {
+        let result = match (key_type, private_key.ec_key(), private_key.rsa()) {
+            (KeyType::ECP256, Ok(ec_key), _) => {
                 let signature_len = {
                     let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
                     unsafe {
@@ -144,21 +137,21 @@ fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
     }
 }
 
-fn create_inner(path: &Path, preferred_algorithm: Algorithm) -> Result<(), Error> {
+fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), Error> {
     let private_key = match preferred_algorithm {
-        Algorithm::ECP256 => {
+        KeyType::ECP256 => {
             let mut group = ec::EcGroup::from_curve_name(nid::Nid::X9_62_PRIME256V1)?;
             group.set_asn1_flag(ec::Asn1Flag::NAMED_CURVE);
             let ec_key = ec::EcKey::generate(&group)?;
             pkey::PKey::from_ec_key(ec_key)?
         }
 
-        Algorithm::RSA2048 => {
+        KeyType::RSA2048 => {
             let rsa = rsa::Rsa::generate(2048)?;
             pkey::PKey::from_rsa(rsa)?
         }
 
-        Algorithm::RSA4096 => {
+        KeyType::RSA4096 => {
             let rsa = rsa::Rsa::generate(4096)?;
             pkey::PKey::from_rsa(rsa)?
         }
@@ -189,12 +182,12 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
+        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
 
         // Check file is present
         let metadata = fs::metadata(file.clone()).unwrap();
 
-        plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
+        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
         let metadata2 = fs::metadata(file.clone()).unwrap(); 
 
         // Check file has not been overwritten
@@ -212,7 +205,7 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
+        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
 
         plugin.delete_key_pair(&id).await.unwrap();
 
@@ -244,7 +237,7 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
+        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
 
         let _pub_key = plugin.get_public_key(&id).await.unwrap();
 
@@ -273,11 +266,11 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, Algorithm::ECP256).await.unwrap();
+        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
 
         let digest = "hello world".as_bytes();
 
-        let _signature= plugin.sign(&id,  Algorithm::ECP256, digest).await.unwrap();
+        let _signature= plugin.sign(&id,  KeyType::ECP256, digest).await.unwrap();
 
         fs::remove_file(file).unwrap();        
     }     
@@ -290,7 +283,7 @@ mod tests {
 
         let digest = "hello world".as_bytes();
 
-        let error= plugin.sign(&id,  Algorithm::ECP256, digest).await.unwrap_err();
+        let error= plugin.sign(&id,  KeyType::ECP256, digest).await.unwrap_err();
 
         if let Error::KeyNotFound(_) = error {
         } else {
