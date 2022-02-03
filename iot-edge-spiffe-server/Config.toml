@@ -1,1 +1,4 @@
 socket_path = "api.sock"
+
+[KeyPluginDisk]
+key_base_path = "."

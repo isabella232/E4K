@@ -1,21 +1,28 @@
 [package]
-name = "keys"
+name = "key-plugins"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 license = "MIT"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1"
 foreign-types-shared = "0.1"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
 thiserror = "1.0"
 
+config = { path = "../config" }
+
 aziot-keys-common = { git = "https://github.com/Azure/iot-identity-service" }
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 openssl2 = { git = "https://github.com/Azure/iot-identity-service" }
 openssl-sys2 = { git = "https://github.com/Azure/iot-identity-service" }
+
+[dev-dependencies]
+tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
+uuid = { version = "0.8", features = ["v4"] }
 
 [features]
 tests = []

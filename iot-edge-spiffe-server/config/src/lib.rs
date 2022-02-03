@@ -15,6 +15,12 @@ use std::{fs, io, path::Path};
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     pub socket_path: String,
+    pub key_plugin_disk: Option<KeyPluginConfigDisk>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct KeyPluginConfigDisk {
+    pub key_base_path: String,
 }
 
 impl Config {
