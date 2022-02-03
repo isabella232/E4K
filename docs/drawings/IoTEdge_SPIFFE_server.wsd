@@ -1,20 +1,25 @@
-@startuml IoTEdge SPIFFE Server
+@startuml IoTEdge SPIFFE server
 database "HSM"
 database "Disk"
 database "SQL"
 database "Memory"
+database "Memory2"
 
 frame "IoTEdgeSPIFFE Server" {
 
 [API SVIDs]-[hidden]left->[API Trust bundle]
 [API Trust bundle]-[hidden]left->[Node attestation]
-[Admin inputs]-left->[DataStore]
-[Admin inputs]-right->[Background\n tasks]
-[API Trust bundle] -down->[DataStore]
-[API SVIDs]-down->[Key plugin] 
-[API SVIDs]-down->[DataStore] 
-[Background\n tasks]-right->[Key plugin]
+[Admin inputs]-right->[DataStore]
+
+[API Trust bundle] -down->[DataStore]: Get pub keys
+[API SVIDs]-down-->[DataStore]: Check entries 
+[API SVIDs]-down->[SVID Signer]: Sign SVID 
+[SVID Signer]-down-> [Key plugin] : Sign Digest
+[Key Manager]-right->[Key plugin] : Add pkeys
+[Key Manager]-left->[DataStore] : Add pub keys
+
 [DataStore] --down->[SQL]
+[DataStore] --down->[Memory2]
 [Key plugin] --down->[Disk]
 [Key plugin] --down->[HSM]
 [Key plugin] --down->[Memory]
