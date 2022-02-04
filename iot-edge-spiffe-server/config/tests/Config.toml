@@ -1,1 +1,5 @@
 socket_path = "api.sock"
+trust_domain = "iotedge"
+
+[KeyPluginDisk]
+key_base_path = "."

@@ -11,16 +11,10 @@
     clippy::too_many_lines
 )]
 
+use common::KeyType;
 use openssl::pkey::{PKey, Public};
 
 pub mod disk;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum KeyType {
-    ECP256,
-    RSA2048,
-    RSA4096,
-}
 
 #[async_trait::async_trait]
 pub trait KeyPlugin: Sync + Send {

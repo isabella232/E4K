@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"serverd",
+	"common",
 	"config",
 	"admin-api",
 	"server-api",

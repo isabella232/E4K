@@ -3,12 +3,15 @@
 mod error;
 
 use catalog::Catalog;
+use common::KeyType;
+use config::Config;
 use error::Error;
-use key_store::{KeyPlugin, KeyType};
+use key_store::KeyPlugin;
 use log::error;
 use std::{sync::Arc, time::SystemTime};
 use tokio::{
     sync::Mutex,
+    task::JoinHandle,
     time::{self, Duration},
 };
 use uuid::Uuid;
@@ -48,8 +51,32 @@ where
     C: KeyPlugin + Send + Sync,
     D: Catalog + Send + Sync,
 {
-    pub async fn start(&'static mut self) {
-        tokio::spawn(self.rotate_periodic());
+    pub async fn new(config: &Config, catalog: Arc<D>, key_store: Arc<C>) -> Result<Self, Error> {
+        let id = Uuid::new_v4().to_string();
+        let current_time = get_epoch_time();
+        let jwt_key = JWTKeyEntry {
+            id: id.clone(),
+            expiry: current_time + config.jwt_key_ttl,
+        };
+
+        let key_manager = Manager::<C, D> {
+            trust_domain: config.trust_domain.clone(),
+            catalog,
+            key_store,
+            jwt_key_type: config.jwt_key_type,
+            jwt_key_ttl: config.jwt_key_ttl,
+            previous_jwt_key_slot: Mutex::new(None),
+            current_jwt_key_slot: Mutex::new(jwt_key),
+            next_jwt_key_slot: Mutex::new(None),
+        };
+
+        key_manager.create_key_and_add_to_catalog(&id).await?;
+
+        Ok(key_manager)
+    }
+
+    pub async fn start(&'static self) -> JoinHandle<()> {
+        tokio::spawn(self.rotate_periodic())
     }
 
     async fn rotate_periodic(&self) {
@@ -83,12 +110,12 @@ where
         if next_jwt_key.is_none() && (current_time > threshold) {
             let id = Uuid::new_v4().to_string();
 
-            self.create_key_and_add_to_catalog(&id).await?;
-
             *next_jwt_key = Some(JWTKeyEntry {
                 id: id.clone(),
                 expiry: current_time + self.jwt_key_ttl,
             });
+
+            self.create_key_and_add_to_catalog(&id).await?;
         }
 
         let threshold = current_jwt_key.expiry - self.jwt_key_ttl / ROTATE_CURRENT_KEY_MARGIN;
@@ -157,4 +184,10 @@ fn get_epoch_time() -> u64 {
         .duration_since(SystemTime::UNIX_EPOCH)
         .expect("Epoch should succeed");
     epoch.as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+
+    fn init() -> (String, Plugin) {}
 }

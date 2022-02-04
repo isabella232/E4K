@@ -10,11 +10,15 @@
     clippy::too_many_lines
 )]
 
+use common::KeyType;
 use std::{fs, io, path::Path};
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     pub socket_path: String,
+    pub trust_domain: String,
+    pub jwt_key_type: KeyType,
+    pub jwt_key_ttl: u64,
     pub key_plugin_disk: Option<KeyPluginConfigDisk>,
 }
 

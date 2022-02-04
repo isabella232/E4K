@@ -1,5 +1,8 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::path::{Path, PathBuf};
 
+use common::KeyType;
 use config::KeyPluginConfigDisk;
 use openssl::{
     ec, nid,
@@ -12,7 +15,7 @@ pub mod error;
 use error::Error;
 use tokio::fs;
 
-use crate::{KeyPlugin, KeyType};
+use crate::KeyPlugin;
 
 struct KeyPair {
     public_key: pkey::PKey<pkey::Public>,
@@ -169,24 +172,27 @@ async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), E
 
 #[cfg(test)]
 mod tests {
+    use tempdir::TempDir;
     use uuid::Uuid;
 
     use super::*;
 
-    fn init() -> Plugin {
+    fn init() -> (String, Plugin) {
+        let dir = TempDir::new("test").unwrap();
+        let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let config = KeyPluginConfigDisk {
-            key_base_path: ".".to_string(),
+            key_base_path: key_base_path.clone(),
         };
-        Plugin::new(&config)
+        (key_base_path, Plugin::new(&config))
     }
 
     #[tokio::test]
     async fn create_key_pair_happy_path_tests() {
-        let plugin = init();
+        let (key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("./{}", id);
+        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ECP256)
@@ -211,11 +217,11 @@ mod tests {
 
     #[tokio::test]
     async fn delete_key_pair_happy_path_tests() {
-        let plugin = init();
+        let (key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("./{}", id);
+        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ECP256)
@@ -232,7 +238,7 @@ mod tests {
 
     #[tokio::test]
     async fn delete_key_pair_error_path_tests() {
-        let plugin = init();
+        let (_key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
@@ -246,11 +252,11 @@ mod tests {
 
     #[tokio::test]
     async fn get_public_key_happy_path() {
-        let plugin = init();
+        let (key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("./{}", id);
+        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ECP256)
@@ -264,7 +270,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_public_key_error_path() {
-        let plugin = init();
+        let (_key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
@@ -278,11 +284,11 @@ mod tests {
 
     #[tokio::test]
     async fn get_sign_happy_path() {
-        let plugin = init();
+        let (key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("./{}", id);
+        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ECP256)
@@ -298,7 +304,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_sign_error_path() {
-        let plugin = init();
+        let (_key_base_path, plugin) = init();
 
         let id = Uuid::new_v4().to_string();
 
