@@ -11,6 +11,7 @@ thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 uuid = { version = "0.8", features = ["v4"] }
 
+catalog = { path = "../catalog" }
 key-store = { path = "../key-store" }
 
 [dev-dependencies]

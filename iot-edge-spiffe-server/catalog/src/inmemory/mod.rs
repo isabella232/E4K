@@ -12,7 +12,9 @@ use self::error::Error;
 pub struct InMemoryCatalog {
     entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
     // Since this is in memory implementation, there is only one trust domain
-    trust_domain_store: Arc<Mutex<HashMap<String, PKey<Public>>>>,
+    // The trust domain string will be ignored in the calls related to the trust domain key store
+    // That one hashmap contains all the public keys for the only trust domain.
+    jwt_trust_domain_store: Arc<Mutex<HashMap<String, PKey<Public>>>>,
 }
 
 impl InMemoryCatalog {
@@ -20,7 +22,7 @@ impl InMemoryCatalog {
     pub fn new() -> Self {
         InMemoryCatalog {
             entries_list: Arc::new(Mutex::new(BTreeMap::new())),
-            trust_domain_store: Arc::new(Mutex::new(HashMap::new())),
+            jwt_trust_domain_store: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -118,23 +120,23 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn add_key_to_trust_domain_store(&self, _trust_domain: &str, kid: &str, public_key: PKey<Public>) -> Result<(), Self::Error> {
-        let mut trust_domain_store = self.trust_domain_store.lock().await;
+    async fn add_key_to_jwt_trust_domain_store(&self, _trust_domain: &str, kid: &str, public_key: PKey<Public>) -> Result<(), Self::Error> {
+        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
-        if trust_domain_store.contains_key(kid) {
+        if jwt_trust_domain_store.contains_key(kid) {
             return Err(Error::DuplicatedKey(kid.to_string()));
         }
 
-        trust_domain_store.insert(kid.to_string(), public_key);
+        jwt_trust_domain_store.insert(kid.to_string(), public_key);
 
         Ok(())
     }
 
-    async fn remove_key_trust_domain_store(&self, _trust_domain: &str, kid: &str) -> Result<(), Self::Error> {
-        let mut trust_domain_store = self.trust_domain_store.lock().await;
+    async fn remove_key_jwt_trust_domain_store(&self, _trust_domain: &str, kid: &str) -> Result<(), Self::Error> {
+        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
-        if trust_domain_store.contains_key(kid) {
-            trust_domain_store.remove(kid);
+        if jwt_trust_domain_store.contains_key(kid) {
+            jwt_trust_domain_store.remove(kid);
         } else {
             return Err(Error::KeyNotFound(kid.to_string()));
         }
@@ -142,10 +144,10 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn get_keys_from_trust_domain_store(&self, _trust_domain: &str) -> Result<Vec<PKey<Public>>, Self::Error> {
-        let trust_domain_store = self.trust_domain_store.lock().await;
+    async fn get_keys_from_jwt_trust_domain_store(&self, _trust_domain: &str) -> Result<Vec<PKey<Public>>, Self::Error> {
+        let jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
-        Ok(trust_domain_store.values().cloned().collect::<Vec<PKey<Public>>>())
+        Ok(jwt_trust_domain_store.values().cloned().collect::<Vec<PKey<Public>>>())
     } 
 }
 
@@ -264,52 +266,52 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn add_key_to_trust_domain_store_test_happy_path() {
+    async fn add_key_to_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
+        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
     }
 
     #[tokio::test]
-    async fn add_key_to_trust_domain_store_test_duplicate_entry() {
+    async fn add_key_to_jwt_trust_domain_store_test_duplicate_entry() {
         let (catalog, public_key) = init_key_test();
 
-        let _res = catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
-        let res = catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key).await.unwrap_err();
+        let _res = catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
+        let res = catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap_err();
         if let Error::DuplicatedKey(_) = res {
         } else {
-            panic!("Wrong error type returned for add_key_to_trust_domain_store")
+            panic!("Wrong error type returned for add_key_to_jwt_trust_domain_store")
         };
     }
 
     #[tokio::test]
-    async fn remove_key_trust_domain_store_test_happy_path() {
+    async fn remove_key_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
-        catalog.remove_key_trust_domain_store("dummy", "my_key").await.unwrap();
+        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
+        catalog.remove_key_jwt_trust_domain_store("dummy", "my_key").await.unwrap();
     }   
     
     #[tokio::test]
-    async fn remove_key_trust_domain_store_test_entry_not_exist() {
+    async fn remove_key_jwt_trust_domain_store_test_entry_not_exist() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
-        let res = catalog.remove_key_trust_domain_store("dummy", "another_key").await.unwrap_err();
+        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
+        let res = catalog.remove_key_jwt_trust_domain_store("dummy", "another_key").await.unwrap_err();
         if let Error::KeyNotFound(_) = res {
         } else {
-            panic!("Wrong error type returned for remove_key_trust_domain_store")
+            panic!("Wrong error type returned for remove_key_jwt_trust_domain_store")
         };
     } 
 
     #[tokio::test]
-    async fn get_keys_from_trust_domain_store_test_happy_path() {
+    async fn get_keys_from_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
-        catalog.add_key_to_trust_domain_store("dummy", "my_key2", public_key).await.unwrap();
+        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
+        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key2", public_key).await.unwrap();
 
-        let keys = catalog.get_keys_from_trust_domain_store("dummy").await.unwrap();
+        let keys = catalog.get_keys_from_jwt_trust_domain_store("dummy").await.unwrap();
 
         assert_eq!(keys.len(), 2);
     } 

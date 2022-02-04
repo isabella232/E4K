@@ -11,7 +11,9 @@ foreign-types-shared = "0.1"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
+tokio = "1"
 thiserror = "1.0"
+
 
 config = { path = "../config" }
 

@@ -1,4 +1,4 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{path::{Path, PathBuf}};
 
 use config::KeyPluginConfigDisk;
 use openssl::{
@@ -10,6 +10,7 @@ use openssl::{
 pub mod error;
 
 use error::Error;
+use tokio::fs;
 
 use crate::{KeyPlugin, KeyType};
 
@@ -52,9 +53,9 @@ impl KeyPlugin for Plugin {
     ) -> Result<(), Error> {
         let path = &self.get_key_path(id);
 
-        if load_inner(path)?.is_none() {
-            create_inner(path, key_type)?;
-            if load_inner(path)?.is_none() {
+        if load_inner(path).await?.is_none() {
+            create_inner(path, key_type).await?;
+            if load_inner(path).await?.is_none() {
                 return Err(Error::KeyNotFound(
                     "key created successfully but could not be found".to_string(),
                 ));
@@ -72,7 +73,7 @@ impl KeyPlugin for Plugin {
     ) -> Result<(usize, Vec<u8>), Error> {
         let path = &self.get_key_path(id);
 
-        let key_pair = load_inner(path)?
+        let key_pair = load_inner(path).await?
             .ok_or_else(|| Error::KeyNotFound("Could not find key for signing".to_string()))?;
     
         let private_key = key_pair.private_key;
@@ -105,7 +106,7 @@ impl KeyPlugin for Plugin {
         let path = &self.get_key_path(id);
 
         let key_pair =
-            load_inner(path)?.ok_or_else(|| Error::KeyNotFound("Cannot get public key".to_string()))?;
+            load_inner(path).await?.ok_or_else(|| Error::KeyNotFound("Cannot get public key".to_string()))?;
     
         Ok(key_pair.public_key)
     }
@@ -113,14 +114,14 @@ impl KeyPlugin for Plugin {
     async fn delete_key_pair(&self, id: &str) -> Result<(), Error> {
         let path = &self.get_key_path(id);
 
-        fs::remove_file(path).map_err(Error::FileDelete)
+        fs::remove_file(path).await.map_err(Error::FileDelete)
     }
 
     
 }
     
-fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
-    match fs::read(path) {
+async fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
+    match fs::read(path).await {
         Ok(private_key_pem) => {
             let private_key = openssl::pkey::PKey::private_key_from_pem(&private_key_pem)?;
 
@@ -137,7 +138,7 @@ fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
     }
 }
 
-fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), Error> {
+async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), Error> {
     let private_key = match preferred_algorithm {
         KeyType::ECP256 => {
             let mut group = ec::EcGroup::from_curve_name(nid::Nid::X9_62_PRIME256V1)?;
@@ -158,7 +159,7 @@ fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), Error> 
     };
 
     let private_key_pem = private_key.private_key_to_pem_pkcs8()?;
-    fs::write(path, &private_key_pem).map_err(Error::FileWrite)
+    fs::write(path, &private_key_pem).await.map_err(Error::FileWrite)
 }
 
 #[cfg(test)]
@@ -185,16 +186,16 @@ mod tests {
         plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
 
         // Check file is present
-        let metadata = fs::metadata(file.clone()).unwrap();
+        let metadata = fs::metadata(file.clone()).await.unwrap();
 
         plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
-        let metadata2 = fs::metadata(file.clone()).unwrap(); 
+        let metadata2 = fs::metadata(file.clone()).await.unwrap(); 
 
         // Check file has not been overwritten
         assert_eq!(metadata.modified().unwrap(), metadata2.modified().unwrap());
 
         // Clean up
-        fs::remove_file(file).unwrap();
+        fs::remove_file(file).await.unwrap();
     }
 
     #[tokio::test]
@@ -210,7 +211,7 @@ mod tests {
         plugin.delete_key_pair(&id).await.unwrap();
 
         // Clean up and verify
-        let error = fs::remove_file(file).unwrap_err();
+        let error = fs::remove_file(file).await.unwrap_err();
 
         assert_eq!(std::io::ErrorKind::NotFound, error.kind());
     }
@@ -241,7 +242,7 @@ mod tests {
 
         let _pub_key = plugin.get_public_key(&id).await.unwrap();
 
-        fs::remove_file(file).unwrap();
+        fs::remove_file(file).await.unwrap();
     }    
 
     #[tokio::test]
@@ -272,7 +273,7 @@ mod tests {
 
         let _signature= plugin.sign(&id,  KeyType::ECP256, digest).await.unwrap();
 
-        fs::remove_file(file).unwrap();        
+        fs::remove_file(file).await.unwrap();        
     }     
 
     #[tokio::test]
