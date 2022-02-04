@@ -16,3 +16,6 @@ pub enum KeyType {
     RSA2048,
     RSA4096,
 }
+
+#[cfg(feature = "tests")]
+pub const CONFIG_DEFAULT_PATH: &str = "../Config.toml";

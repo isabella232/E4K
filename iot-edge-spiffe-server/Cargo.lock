@@ -550,6 +550,7 @@ dependencies = [
  "config",
  "key-store",
  "log",
+ "tempdir",
  "thiserror",
  "tokio",
  "uuid",

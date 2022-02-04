@@ -9,10 +9,11 @@ use std::{
 use futures_util::lock::Mutex;
 use openssl::pkey::{PKey, Public};
 use server_admin_api::RegistrationEntry;
+use crate::Catalog as CatalogTrait;
 
 use self::error::Error;
 
-pub struct InMemoryCatalog {
+pub struct Catalog {
     entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
     // Since this is in memory implementation, there is only one trust domain
     // The trust domain string will be ignored in the calls related to the trust domain key store
@@ -20,24 +21,24 @@ pub struct InMemoryCatalog {
     jwt_trust_domain_store: Arc<Mutex<HashMap<String, PKey<Public>>>>,
 }
 
-impl InMemoryCatalog {
+impl Catalog {
     #[must_use]
     pub fn new() -> Self {
-        InMemoryCatalog {
+        Catalog {
             entries_list: Arc::new(Mutex::new(BTreeMap::new())),
             jwt_trust_domain_store: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
-impl Default for InMemoryCatalog {
+impl Default for Catalog {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[async_trait::async_trait]
-impl crate::Catalog for InMemoryCatalog {
+impl CatalogTrait for Catalog {
     type Error = crate::inmemory::Error;
 
     async fn create_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
@@ -173,11 +174,11 @@ impl crate::Catalog for InMemoryCatalog {
 mod tests {
     use server_admin_api::RegistrationEntry;
 
-    use crate::Catalog;
+    use crate::Catalog as CatalogTrait;
 
     use super::*;
 
-    fn init_entry_test() -> (InMemoryCatalog, RegistrationEntry) {
+    fn init_entry_test() -> (Catalog, RegistrationEntry) {
         let entry = RegistrationEntry {
             id: String::from("id"),
             iot_hub_id: None,
@@ -191,7 +192,7 @@ mod tests {
             revision_number: 0,
             store_svid: false,
         };
-        let catalog = InMemoryCatalog::new();
+        let catalog = Catalog::new();
 
         (catalog, entry)
     }
@@ -286,14 +287,14 @@ mod tests {
         };
     }
 
-    fn init_key_test() -> (InMemoryCatalog, PKey<Public>) {
+    fn init_key_test() -> (Catalog, PKey<Public>) {
         let public_key_der = PKey::generate_ed25519()
             .unwrap()
             .public_key_to_der()
             .unwrap();
         let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der).unwrap();
 
-        let catalog = InMemoryCatalog::new();
+        let catalog = Catalog::new();
 
         (catalog, public_key)
     }

@@ -1,5 +1,7 @@
 socket_path = "api.sock"
 trust_domain = "iotedge"
+jwt_key_type = "ECP256"
+jwt_key_ttl = 300
 
 [KeyPluginDisk]
 key_base_path = "."

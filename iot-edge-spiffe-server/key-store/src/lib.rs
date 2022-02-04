@@ -17,7 +17,7 @@ use openssl::pkey::{PKey, Public};
 pub mod disk;
 
 #[async_trait::async_trait]
-pub trait KeyPlugin: Sync + Send {
+pub trait KeyStore: Sync + Send {
     type Error: std::error::Error + 'static;
 
     async fn create_key_pair_if_not_exists(

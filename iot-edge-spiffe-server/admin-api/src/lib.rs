@@ -190,11 +190,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use catalog::inmemory::InMemoryCatalog;
+    use catalog::inmemory::Catalog;
     use server_admin_api::RegistrationEntry;
 
-    fn init() -> (Api<InMemoryCatalog>, Vec<RegistrationEntry>) {
-        let catalog = Arc::new(catalog::inmemory::InMemoryCatalog::new());
+    fn init() -> (Api<Catalog>, Vec<RegistrationEntry>) {
+        let catalog = Arc::new(catalog::inmemory::Catalog::new());
 
         let api = Api { catalog };
 

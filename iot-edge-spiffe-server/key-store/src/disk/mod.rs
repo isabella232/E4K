@@ -15,22 +15,22 @@ pub mod error;
 use error::Error;
 use tokio::fs;
 
-use crate::KeyPlugin;
+use crate::KeyStore as KeyPluginTrait;
 
 struct KeyPair {
     public_key: pkey::PKey<pkey::Public>,
     private_key: PKey<pkey::Private>,
 }
 
-pub struct Plugin {
+pub struct KeyStore {
     key_base_path: PathBuf,
 }
 
-impl Plugin {
+impl KeyStore {
     #[must_use]
     pub fn new(config: &KeyPluginConfigDisk) -> Self {
         let key_base_path = Path::new(&config.key_base_path).to_path_buf();
-        Plugin { key_base_path }
+        KeyStore { key_base_path }
     }
 
     fn get_key_path(&self, id: &str) -> PathBuf {
@@ -43,7 +43,7 @@ impl Plugin {
 }
 
 #[async_trait::async_trait]
-impl KeyPlugin for Plugin {
+impl KeyPluginTrait for KeyStore {
     type Error = crate::disk::Error;
 
     async fn create_key_pair_if_not_exists(
@@ -177,13 +177,13 @@ mod tests {
 
     use super::*;
 
-    fn init() -> (String, Plugin) {
+    fn init() -> (String, KeyStore) {
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let config = KeyPluginConfigDisk {
             key_base_path: key_base_path.clone(),
         };
-        (key_base_path, Plugin::new(&config))
+        (key_base_path, KeyStore::new(&config))
     }
 
     #[tokio::test]
