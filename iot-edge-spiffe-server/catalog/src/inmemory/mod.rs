@@ -6,10 +6,10 @@ use std::{
     sync::Arc,
 };
 
+use crate::Catalog as CatalogTrait;
 use futures_util::lock::Mutex;
 use openssl::pkey::{PKey, Public};
 use server_admin_api::RegistrationEntry;
-use crate::Catalog as CatalogTrait;
 
 use self::error::Error;
 
@@ -172,6 +172,7 @@ impl CatalogTrait for Catalog {
 
 #[cfg(test)]
 mod tests {
+    use openssl::{ec, nid, pkey};
     use server_admin_api::RegistrationEntry;
 
     use crate::Catalog as CatalogTrait;
@@ -288,7 +289,10 @@ mod tests {
     }
 
     fn init_key_test() -> (Catalog, PKey<Public>) {
-        let public_key_der = PKey::generate_ed25519()
+        let mut group = ec::EcGroup::from_curve_name(nid::Nid::X9_62_PRIME256V1).unwrap();
+        group.set_asn1_flag(ec::Asn1Flag::NAMED_CURVE);
+        let ec_key = ec::EcKey::generate(&group).unwrap();
+        let public_key_der = pkey::PKey::from_ec_key(ec_key)
             .unwrap()
             .public_key_to_der()
             .unwrap();

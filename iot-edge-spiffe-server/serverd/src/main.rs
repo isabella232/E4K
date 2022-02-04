@@ -40,6 +40,7 @@ async fn main() {
 async fn main_inner() -> Result<(), Box<dyn StdError>> {
     let config = Config::load_config(CONFIG_DEFAULT_PATH).map_err(Error::ErrorParsingConfig)?;
 
+    // Dummy code here
     let catalog = Arc::new(catalog::inmemory::Catalog::new());
 
     admin_api::start_admin_api(&config, catalog).await?;

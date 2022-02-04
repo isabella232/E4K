@@ -1,14 +1,24 @@
 // Copyright (c) Microsoft. All rights reserved.
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::missing_safety_doc,
+    clippy::default_trait_access,
+    clippy::let_unit_value,
+    clippy::missing_errors_doc,
+    clippy::similar_names,
+    clippy::too_many_lines
+)]
 
 mod error;
 
 use catalog::Catalog;
-use common::KeyType;
+use common::{get_epoch_time, KeyType};
 use config::Config;
 use error::Error;
 use key_store::KeyStore;
 use log::error;
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 use tokio::{
     sync::Mutex,
     task::JoinHandle,
@@ -51,9 +61,14 @@ where
     C: KeyStore + Send + Sync,
     D: Catalog + Send + Sync,
 {
-    pub async fn new(config: &Config, catalog: Arc<D>, key_store: Arc<C>) -> Result<Self, Error> {
+    pub async fn new(
+        config: &Config,
+        catalog: Arc<D>,
+        key_store: Arc<C>,
+        current_time: u64,
+    ) -> Result<Self, Error> {
         let id = Uuid::new_v4().to_string();
-        let current_time = get_epoch_time();
+
         let jwt_key = JWTKeyEntry {
             id: id.clone(),
             expiry: current_time + config.jwt_key_ttl,
@@ -127,7 +142,8 @@ where
             // This should never happen, the key should have expired a long time ago. But we clean up nonetheless and raise an error.
             if let Some(jwt_key) = previous_jwt_key {
                 log::error!("Request of key current slot deprecation while key in previous slot has not expired yet");
-                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id).await?;
+                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
+                    .await?;
             }
             *previous_jwt_key = Some(current_jwt_key.clone());
             *current_jwt_key = jwt_key;
@@ -137,7 +153,8 @@ where
         // If the key expire before being pushed out. It should not happen though.
         if let Some(jwt_key) = previous_jwt_key {
             if current_time > jwt_key.expiry {
-                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id).await?;
+                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
+                    .await?;
                 *previous_jwt_key = None;
             }
         }
@@ -178,40 +195,45 @@ where
     }
 }
 
-fn get_epoch_time() -> u64 {
-    let now = SystemTime::now();
-    let epoch = now
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("Epoch should succeed");
-    epoch.as_secs()
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use tempdir::TempDir;
     use catalog::{inmemory, Catalog};
     use config::{Config, KeyPluginConfigDisk};
-    use key_store::{KeyStore, disk};
+    use key_store::{disk, KeyStore};
+    use std::sync::Arc;
+    use tempdir::TempDir;
 
     use crate::Manager;
 
-    async fn init() -> (Manager<disk::KeyStore, inmemory::Catalog>, Arc<inmemory::Catalog>, Arc<disk::KeyStore>) {
-
+    async fn init() -> (
+        Manager<disk::KeyStore, inmemory::Catalog>,
+        Arc<inmemory::Catalog>,
+        Arc<disk::KeyStore>,
+    ) {
         let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let key_plugin = KeyPluginConfigDisk {
             key_base_path: key_base_path.clone(),
         };
-        
+
         // Change key disk plugin path to write in tempdir
         config.key_plugin_disk = Some(key_plugin);
+        // Force ttl to 300s
+        config.jwt_key_ttl = 300;
 
         let catalog = Arc::new(inmemory::Catalog::new());
-        let key_store = Arc::new(disk::KeyStore::new(&config.clone().key_plugin_disk.unwrap()));
+        let key_store = Arc::new(disk::KeyStore::new(
+            &config.clone().key_plugin_disk.unwrap(),
+        ));
 
-        (Manager::new(&config, catalog.clone(), key_store.clone()).await.unwrap(), catalog, key_store)
+        (
+            Manager::new(&config, catalog.clone(), key_store.clone(), 0)
+                .await
+                .unwrap(),
+            catalog,
+            key_store,
+        )
     }
 
     #[tokio::test]
@@ -219,30 +241,156 @@ mod tests {
         let (manager, catalog, key_store) = init().await;
 
         // Check the public key has been uploaded
-        let res = catalog.get_keys_from_jwt_trust_domain_store("dummy").await.unwrap();
+        let res = catalog
+            .get_keys_from_jwt_trust_domain_store("dummy")
+            .await
+            .unwrap();
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store
-        let next_jwt_key = manager.current_jwt_key_slot.lock().await;
-        let _key = key_store.get_public_key(&next_jwt_key.id).await.unwrap();
+        let current_jwt_key = manager.current_jwt_key_slot.lock().await;
+        let _key = key_store.get_public_key(&current_jwt_key.id).await.unwrap();
     }
 
     #[tokio::test]
     async fn remove_jwt_key_from_catalog_and_store_test_happy_path() {
         let (manager, catalog, key_store) = init().await;
 
-        let next_jwt_key = manager.current_jwt_key_slot.lock().await;
-        manager.remove_jwt_key_from_catalog_and_store(&next_jwt_key.id).await.unwrap();
+        let current_jwt_key = manager.current_jwt_key_slot.lock().await;
+        manager
+            .remove_jwt_key_from_catalog_and_store(&current_jwt_key.id)
+            .await
+            .unwrap();
 
         // Check it was removed from catalog
-        let res = catalog.get_keys_from_jwt_trust_domain_store("dummy").await.unwrap();
+        let res = catalog
+            .get_keys_from_jwt_trust_domain_store("dummy")
+            .await
+            .unwrap();
         assert_eq!(res.len(), 0);
 
         // Check private key is in not the store
-        let error = key_store.get_public_key(&next_jwt_key.id).await.unwrap_err();
+        let error = key_store
+            .get_public_key(&current_jwt_key.id)
+            .await
+            .unwrap_err();
         if let disk::error::Error::KeyNotFound(_) = error {
         } else {
             panic!("Wrong error type returned for get_public_key")
         };
-    }   
+    }
+
+    #[tokio::test]
+    async fn rotate_periodic_test_state_machine() {
+        let (manager, catalog, key_store) = init().await;
+
+        // We test 3 events
+        // 1. Next key create when current time > ttl/2
+        // 2. key rotate (current->prev, next -> current) when current time > ttl - ttl/6
+        // 5. key expiry time > ttl
+
+        //------------------------ Stage 1 ----------------------------
+        let (current_jwt_key_id, next_jwt_key_id) =
+            run_stage1(&manager, catalog.clone(), key_store.clone()).await;
+
+        //------------------------ Stage 2 ----------------------------
+        run_stage2(&manager, &current_jwt_key_id, &next_jwt_key_id).await;
+
+        //------------------------ Stage 3 ----------------------------
+        run_stage3(&manager, catalog, key_store, &current_jwt_key_id).await;
+    }
+
+    async fn run_stage1(
+        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        catalog: Arc<inmemory::Catalog>,
+        key_store: Arc<disk::KeyStore>,
+    ) -> (String, String) {
+        manager
+            .rotate_periodic_logic(manager.jwt_key_ttl / 2 + 1)
+            .await
+            .unwrap();
+        let next_jwt_key = &mut *manager.next_jwt_key_slot.lock().await;
+        let current_jwt_key = &mut *manager.current_jwt_key_slot.lock().await;
+        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+
+        assert!(prev_jwt_key.is_none());
+
+        let next_jwt_key_id = if let Some(next_jwt_key) = next_jwt_key {
+            next_jwt_key.id.clone()
+        } else {
+            panic!("No next_jwt_key");
+        };
+        let current_jwt_key_id = current_jwt_key.id.clone();
+
+        // Now there should be 2 keys. One in the current slot, the other in the next.
+        let res = catalog
+            .get_keys_from_jwt_trust_domain_store("dummy")
+            .await
+            .unwrap();
+        assert_eq!(res.len(), 2);
+
+        // Check private key is in the store
+        let _key = key_store.get_public_key(&next_jwt_key_id).await.unwrap();
+
+        (current_jwt_key_id, next_jwt_key_id)
+    }
+
+    async fn run_stage2(
+        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        current_jwt_key_id: &str,
+        next_jwt_key_id: &str,
+    ) {
+        manager
+            .rotate_periodic_logic(manager.jwt_key_ttl - manager.jwt_key_ttl / 6 + 1)
+            .await
+            .unwrap();
+        let next_jwt_key = &mut *manager.next_jwt_key_slot.lock().await;
+        let current_jwt_key = &mut *manager.current_jwt_key_slot.lock().await;
+        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+
+        // Check key in current slot was moved to prev
+        if let Some(prev_jwt_key) = prev_jwt_key {
+            assert_eq!(prev_jwt_key.id, current_jwt_key_id);
+        } else {
+            panic!("No prev_jwt_key");
+        };
+
+        // Check key in next slot was moved to current
+        assert_eq!(current_jwt_key.id, next_jwt_key_id);
+
+        //Check key has been removed from slot
+        assert!(next_jwt_key.is_none());
+    }
+
+    async fn run_stage3(
+        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        catalog: Arc<inmemory::Catalog>,
+        key_store: Arc<disk::KeyStore>,
+        current_jwt_key_id: &str,
+    ) {
+        manager
+            .rotate_periodic_logic(manager.jwt_key_ttl + 1)
+            .await
+            .unwrap();
+        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+
+        assert!(prev_jwt_key.is_none());
+
+        // Now there should be only 1 keys. One in the current slot
+        let res = catalog
+            .get_keys_from_jwt_trust_domain_store("dummy")
+            .await
+            .unwrap();
+        assert_eq!(res.len(), 1);
+
+        // Check private key is in the store
+        let error = key_store
+            .get_public_key(current_jwt_key_id)
+            .await
+            .unwrap_err();
+        if let disk::error::Error::KeyNotFound(_) = error {
+        } else {
+            panic!("Wrong error type returned for get_public_key")
+        };
+    }
 }
