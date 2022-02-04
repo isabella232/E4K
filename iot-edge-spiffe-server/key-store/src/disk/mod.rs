@@ -1,4 +1,4 @@
-use std::{path::{Path, PathBuf}};
+use std::path::{Path, PathBuf};
 
 use config::KeyPluginConfigDisk;
 use openssl::{
@@ -15,29 +15,26 @@ use tokio::fs;
 use crate::{KeyPlugin, KeyType};
 
 struct KeyPair {
-    public_key : pkey::PKey<pkey::Public>,
-    private_key :PKey<pkey::Private>,
+    public_key: pkey::PKey<pkey::Public>,
+    private_key: PKey<pkey::Private>,
 }
 
 pub struct Plugin {
     key_base_path: PathBuf,
 }
 
-
 impl Plugin {
     #[must_use]
-    pub fn new(config : &KeyPluginConfigDisk) -> Self {
+    pub fn new(config: &KeyPluginConfigDisk) -> Self {
         let key_base_path = Path::new(&config.key_base_path).to_path_buf();
-        Plugin {
-            key_base_path,
-        }
+        Plugin { key_base_path }
     }
 
     fn get_key_path(&self, id: &str) -> PathBuf {
         let mut path = self.key_base_path.clone();
         let key_name = Path::new(id);
-        path.push(key_name); 
-        
+        path.push(key_name);
+
         path
     }
 }
@@ -61,10 +58,10 @@ impl KeyPlugin for Plugin {
                 ));
             }
         }
-    
+
         Ok(())
     }
-    
+
     async fn sign(
         &self,
         id: &str,
@@ -73,11 +70,12 @@ impl KeyPlugin for Plugin {
     ) -> Result<(usize, Vec<u8>), Error> {
         let path = &self.get_key_path(id);
 
-        let key_pair = load_inner(path).await?
+        let key_pair = load_inner(path)
+            .await?
             .ok_or_else(|| Error::KeyNotFound("Could not find key for signing".to_string()))?;
-    
+
         let private_key = key_pair.private_key;
-    
+
         let result = match (key_type, private_key.ec_key(), private_key.rsa()) {
             (KeyType::ECP256, Ok(ec_key), _) => {
                 let signature_len = {
@@ -85,41 +83,43 @@ impl KeyPlugin for Plugin {
                     unsafe {
                         let signature_len = openssl_sys2::ECDSA_size(ec_key);
                         std::convert::TryInto::try_into(signature_len).map_err(|err| {
-                            Error::ConvertToUsize(err, "ECDSA_size returned invalid value".to_string())
+                            Error::ConvertToUsize(
+                                err,
+                                "ECDSA_size returned invalid value".to_string(),
+                            )
                         })
                     }
                 }?;
-    
+
                 let signature = openssl::ecdsa::EcdsaSig::sign(digest, &ec_key)?;
                 let signature = signature.to_der()?;
-    
+
                 Some((signature_len, signature))
             }
-    
+
             _ => None,
         };
-    
+
         result.ok_or_else(Error::UnsupportedMechanismType)
     }
-    
+
     async fn get_public_key(&self, id: &str) -> Result<PKey<Public>, Error> {
         let path = &self.get_key_path(id);
 
-        let key_pair =
-            load_inner(path).await?.ok_or_else(|| Error::KeyNotFound("Cannot get public key".to_string()))?;
-    
+        let key_pair = load_inner(path)
+            .await?
+            .ok_or_else(|| Error::KeyNotFound("Cannot get public key".to_string()))?;
+
         Ok(key_pair.public_key)
     }
-    
+
     async fn delete_key_pair(&self, id: &str) -> Result<(), Error> {
         let path = &self.get_key_path(id);
 
         fs::remove_file(path).await.map_err(Error::FileDelete)
     }
-
-    
 }
-    
+
 async fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
     match fs::read(path).await {
         Ok(private_key_pem) => {
@@ -129,7 +129,10 @@ async fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
             let public_key_der = private_key.public_key_to_der()?;
             let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der)?;
 
-            Ok(Some(KeyPair{public_key, private_key}))
+            Ok(Some(KeyPair {
+                public_key,
+                private_key,
+            }))
         }
 
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -159,7 +162,9 @@ async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), E
     };
 
     let private_key_pem = private_key.private_key_to_pem_pkcs8()?;
-    fs::write(path, &private_key_pem).await.map_err(Error::FileWrite)
+    fs::write(path, &private_key_pem)
+        .await
+        .map_err(Error::FileWrite)
 }
 
 #[cfg(test)]
@@ -169,11 +174,11 @@ mod tests {
     use super::*;
 
     fn init() -> Plugin {
-        let config = KeyPluginConfigDisk { key_base_path: ".".to_string() };
-        let plugin = Plugin::new(&config);
-
-        plugin
-    }    
+        let config = KeyPluginConfigDisk {
+            key_base_path: ".".to_string(),
+        };
+        Plugin::new(&config)
+    }
 
     #[tokio::test]
     async fn create_key_pair_happy_path_tests() {
@@ -183,13 +188,19 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
+        plugin
+            .create_key_pair_if_not_exists(&id, KeyType::ECP256)
+            .await
+            .unwrap();
 
         // Check file is present
         let metadata = fs::metadata(file.clone()).await.unwrap();
 
-        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
-        let metadata2 = fs::metadata(file.clone()).await.unwrap(); 
+        plugin
+            .create_key_pair_if_not_exists(&id, KeyType::ECP256)
+            .await
+            .unwrap();
+        let metadata2 = fs::metadata(file.clone()).await.unwrap();
 
         // Check file has not been overwritten
         assert_eq!(metadata.modified().unwrap(), metadata2.modified().unwrap());
@@ -206,7 +217,10 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
+        plugin
+            .create_key_pair_if_not_exists(&id, KeyType::ECP256)
+            .await
+            .unwrap();
 
         plugin.delete_key_pair(&id).await.unwrap();
 
@@ -238,12 +252,15 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
+        plugin
+            .create_key_pair_if_not_exists(&id, KeyType::ECP256)
+            .await
+            .unwrap();
 
         let _pub_key = plugin.get_public_key(&id).await.unwrap();
 
         fs::remove_file(file).await.unwrap();
-    }    
+    }
 
     #[tokio::test]
     async fn get_public_key_error_path() {
@@ -257,8 +274,8 @@ mod tests {
         } else {
             panic!("Wrong error type returned for get_public_key")
         };
-    }  
-    
+    }
+
     #[tokio::test]
     async fn get_sign_happy_path() {
         let plugin = init();
@@ -267,14 +284,17 @@ mod tests {
 
         let file = format!("./{}", id);
 
-        plugin.create_key_pair_if_not_exists(&id, KeyType::ECP256).await.unwrap();
+        plugin
+            .create_key_pair_if_not_exists(&id, KeyType::ECP256)
+            .await
+            .unwrap();
 
         let digest = "hello world".as_bytes();
 
-        let _signature= plugin.sign(&id,  KeyType::ECP256, digest).await.unwrap();
+        let _signature = plugin.sign(&id, KeyType::ECP256, digest).await.unwrap();
 
-        fs::remove_file(file).await.unwrap();        
-    }     
+        fs::remove_file(file).await.unwrap();
+    }
 
     #[tokio::test]
     async fn get_sign_error_path() {
@@ -284,12 +304,11 @@ mod tests {
 
         let digest = "hello world".as_bytes();
 
-        let error= plugin.sign(&id,  KeyType::ECP256, digest).await.unwrap_err();
+        let error = plugin.sign(&id, KeyType::ECP256, digest).await.unwrap_err();
 
         if let Error::KeyNotFound(_) = error {
         } else {
             panic!("Wrong error type returned for get_public_key")
-        };       
-    }        
+        };
+    }
 }
-

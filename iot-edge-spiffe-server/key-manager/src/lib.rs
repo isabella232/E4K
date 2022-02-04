@@ -2,15 +2,18 @@
 
 mod error;
 
-use std::{sync::Arc, time::SystemTime};
 use catalog::Catalog;
-use log::error;
 use error::Error;
-use tokio::{time::{Duration, self}, sync::Mutex};
 use key_store::{KeyPlugin, KeyType};
+use log::error;
+use std::{sync::Arc, time::SystemTime};
+use tokio::{
+    sync::Mutex,
+    time::{self, Duration},
+};
 use uuid::Uuid;
 
-const ROTATION_POLL_INTERVAL_SECONDS : u64 = 60;
+const ROTATION_POLL_INTERVAL_SECONDS: u64 = 60;
 // This is a divisor, so a higher divisor results in smaller margin
 // This is the percentage of the lifetime of the current key left when the next key is created
 const PREPARE_NEXT_KEY_FOR_ROTATION_MARGIN: u64 = 2;
@@ -20,30 +23,30 @@ const ROTATE_CURRENT_KEY_MARGIN: u64 = 6;
 
 #[derive(Clone)]
 struct JWTKeyEntry {
-    id : String,
-    expiry : u64, 
+    id: String,
+    expiry: u64,
 }
 
-pub struct Manager<C, D> 
+pub struct Manager<C, D>
 where
     C: KeyPlugin + Send + Sync,
-    D: Catalog + Send + Sync
+    D: Catalog + Send + Sync,
 {
-    trust_domain : String,
+    trust_domain: String,
     catalog: Arc<D>,
-    key_store : Arc<C>,
-    jwt_key_type : KeyType,
-    jwt_key_ttl : u64,
-  
+    key_store: Arc<C>,
+    jwt_key_type: KeyType,
+    jwt_key_ttl: u64,
+
     previous_jwt_key_slot: Mutex<Option<JWTKeyEntry>>,
     current_jwt_key_slot: Mutex<JWTKeyEntry>,
     next_jwt_key_slot: Mutex<Option<JWTKeyEntry>>,
 }
 
-impl<C, D> Manager<C, D> 
+impl<C, D> Manager<C, D>
 where
     C: KeyPlugin + Send + Sync,
-    D: Catalog + Send + Sync
+    D: Catalog + Send + Sync,
 {
     pub async fn start(&'static mut self) {
         tokio::spawn(self.rotate_periodic());
@@ -54,8 +57,8 @@ where
 
         loop {
             interval.tick().await;
-   
-            let current_time = get_epoch_time(); 
+
+            let current_time = get_epoch_time();
             if let Err(err) = self.rotate_periodic_logic(current_time).await {
                 error!("{}", err);
             }
@@ -73,20 +76,24 @@ where
         let current_jwt_key = &mut *self.current_jwt_key_slot.lock().await;
         let previous_jwt_key = &mut *self.previous_jwt_key_slot.lock().await;
 
-        let threshold = current_jwt_key.expiry - self.jwt_key_ttl/PREPARE_NEXT_KEY_FOR_ROTATION_MARGIN;
+        let threshold =
+            current_jwt_key.expiry - self.jwt_key_ttl / PREPARE_NEXT_KEY_FOR_ROTATION_MARGIN;
 
         // Create new key in the next slot. The pulic part of the key is added to the catalog.
-        if next_jwt_key.is_none() && (current_time > threshold)  {
+        if next_jwt_key.is_none() && (current_time > threshold) {
             let id = Uuid::new_v4().to_string();
 
             self.create_key_and_add_to_catalog(&id).await?;
 
-            *next_jwt_key= Some(JWTKeyEntry { id: id.clone(), expiry: current_time + self.jwt_key_ttl });
+            *next_jwt_key = Some(JWTKeyEntry {
+                id: id.clone(),
+                expiry: current_time + self.jwt_key_ttl,
+            });
         }
 
-        let threshold = current_jwt_key.expiry - self.jwt_key_ttl/ROTATE_CURRENT_KEY_MARGIN;
+        let threshold = current_jwt_key.expiry - self.jwt_key_ttl / ROTATE_CURRENT_KEY_MARGIN;
 
-        if current_time > threshold  {
+        if current_time > threshold {
             let jwt_key = next_jwt_key.clone().ok_or_else(Error::NextJwtKeyMissing)?;
 
             // Rotate keys, current key is the one used for signing.
@@ -95,7 +102,7 @@ where
                 log::error!("Request of key current slot deprecation while key in previous slot has not expired yet");
                 self.clean_jwt_key_slots(&jwt_key.id).await?;
             }
-            *previous_jwt_key = Some(current_jwt_key.clone()); 
+            *previous_jwt_key = Some(current_jwt_key.clone());
             *current_jwt_key = jwt_key;
             *next_jwt_key = None;
         }
@@ -113,26 +120,34 @@ where
 
     async fn clean_jwt_key_slots(&self, id: &str) -> Result<(), Error> {
         // Delete the old private key
-        self.key_store.delete_key_pair(id)
-        .await
-        .map_err(|err| Error::DeletingPrivateKey(Box::new(err)))?;
+        self.key_store
+            .delete_key_pair(id)
+            .await
+            .map_err(|err| Error::DeletingPrivateKey(Box::new(err)))?;
 
         // Remove from catalog
-        self.catalog.remove_key_jwt_trust_domain_store(&self.trust_domain, &id)
-        .await
-        .map_err(|err| Error::DeletingPublicKey(Box::new(err)))
+        self.catalog
+            .remove_key_jwt_trust_domain_store(&self.trust_domain, id)
+            .await
+            .map_err(|err| Error::DeletingPublicKey(Box::new(err)))
     }
 
     async fn create_key_and_add_to_catalog(&self, id: &str) -> Result<(), Error> {
-        self.key_store.create_key_pair_if_not_exists(&id, self.jwt_key_type)
-        .await
-        .map_err(|err| Error::CreatingNewKey(Box::new(err)))?;
+        self.key_store
+            .create_key_pair_if_not_exists(id, self.jwt_key_type)
+            .await
+            .map_err(|err| Error::CreatingNewKey(Box::new(err)))?;
 
-        let public_key = self.key_store.get_public_key(&id).await
-        .map_err(|err| Error::GettingPulicKey(Box::new(err)))?;
-        
-        self.catalog.add_key_to_jwt_trust_domain_store(&self.trust_domain, &id, public_key).await
-        .map_err(|err| Error::AddingPulicKey(Box::new(err)))
+        let public_key = self
+            .key_store
+            .get_public_key(id)
+            .await
+            .map_err(|err| Error::GettingPulicKey(Box::new(err)))?;
+
+        self.catalog
+            .add_key_to_jwt_trust_domain_store(&self.trust_domain, id, public_key)
+            .await
+            .map_err(|err| Error::AddingPulicKey(Box::new(err)))
     }
 }
 

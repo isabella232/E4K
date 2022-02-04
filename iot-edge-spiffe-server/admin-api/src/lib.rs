@@ -11,13 +11,13 @@
 )]
 
 use catalog::Catalog;
+use config::Config;
 use error::Error;
 use http_common::Connector;
 use server_admin_api::{
     create_registration_entries, delete_registration_entries, list_registration_entries, operation,
     select_get_registration_entries, update_registration_entries,
 };
-use config::Config;
 use std::{io, path::Path, sync::Arc};
 
 mod error;

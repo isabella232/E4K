@@ -10,10 +10,10 @@
     clippy::too_many_lines
 )]
 
+use config::Config;
 use error::Error;
 use http_common::Connector;
 use server_agent_api::{create_new_jwt, get_trust_bundle, Bundle, JWTSVID, SPIFFEID};
-use config::Config;
 use std::io;
 
 mod error;

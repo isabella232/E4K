@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 mod error;
 
-use std::{collections::{BTreeMap, HashMap}, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use futures_util::lock::Mutex;
 use openssl::pkey::{PKey, Public};
@@ -120,7 +123,12 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn add_key_to_jwt_trust_domain_store(&self, _trust_domain: &str, kid: &str, public_key: PKey<Public>) -> Result<(), Self::Error> {
+    async fn add_key_to_jwt_trust_domain_store(
+        &self,
+        _trust_domain: &str,
+        kid: &str,
+        public_key: PKey<Public>,
+    ) -> Result<(), Self::Error> {
         let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
         if jwt_trust_domain_store.contains_key(kid) {
@@ -132,7 +140,11 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn remove_key_jwt_trust_domain_store(&self, _trust_domain: &str, kid: &str) -> Result<(), Self::Error> {
+    async fn remove_key_jwt_trust_domain_store(
+        &self,
+        _trust_domain: &str,
+        kid: &str,
+    ) -> Result<(), Self::Error> {
         let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
         if jwt_trust_domain_store.contains_key(kid) {
@@ -144,11 +156,17 @@ impl crate::Catalog for InMemoryCatalog {
         Ok(())
     }
 
-    async fn get_keys_from_jwt_trust_domain_store(&self, _trust_domain: &str) -> Result<Vec<PKey<Public>>, Self::Error> {
+    async fn get_keys_from_jwt_trust_domain_store(
+        &self,
+        _trust_domain: &str,
+    ) -> Result<Vec<PKey<Public>>, Self::Error> {
         let jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
 
-        Ok(jwt_trust_domain_store.values().cloned().collect::<Vec<PKey<Public>>>())
-    } 
+        Ok(jwt_trust_domain_store
+            .values()
+            .cloned()
+            .collect::<Vec<PKey<Public>>>())
+    }
 }
 
 #[cfg(test)]
@@ -189,7 +207,10 @@ mod tests {
     async fn create_registration_entry_test_duplicate_entry() {
         let (catalog, entry) = init_entry_test();
 
-        catalog.create_registration_entry(entry.clone()).await.unwrap();
+        catalog
+            .create_registration_entry(entry.clone())
+            .await
+            .unwrap();
         let res = catalog.create_registration_entry(entry).await.unwrap_err();
         if let Error::DuplicatedEntry(_) = res {
         } else {
@@ -201,7 +222,10 @@ mod tests {
     async fn update_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        catalog.create_registration_entry(entry.clone()).await.unwrap();
+        catalog
+            .create_registration_entry(entry.clone())
+            .await
+            .unwrap();
         catalog.update_registration_entry(entry).await.unwrap();
     }
 
@@ -220,20 +244,26 @@ mod tests {
     async fn delete_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        catalog.create_registration_entry(entry.clone()).await.unwrap();
+        catalog
+            .create_registration_entry(entry.clone())
+            .await
+            .unwrap();
         catalog.delete_registration_entry(&entry.id).await.unwrap();
-    }   
-    
+    }
+
     #[tokio::test]
     async fn delete_registration_entry_test_entry_not_exist() {
         let (catalog, entry) = init_entry_test();
 
-        let res = catalog.delete_registration_entry(&entry.id).await.unwrap_err();
+        let res = catalog
+            .delete_registration_entry(&entry.id)
+            .await
+            .unwrap_err();
         if let Error::EntryNotFound(_) = res {
         } else {
             panic!("Wrong error type returned for delete_registration_entry")
         };
-    }    
+    }
 
     #[tokio::test]
     async fn get_registration_entry_test_happy_path() {
@@ -257,9 +287,12 @@ mod tests {
     }
 
     fn init_key_test() -> (InMemoryCatalog, PKey<Public>) {
-        let public_key_der= PKey::generate_ed25519().unwrap().public_key_to_der().unwrap();
+        let public_key_der = PKey::generate_ed25519()
+            .unwrap()
+            .public_key_to_der()
+            .unwrap();
         let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der).unwrap();
-        
+
         let catalog = InMemoryCatalog::new();
 
         (catalog, public_key)
@@ -269,15 +302,24 @@ mod tests {
     async fn add_key_to_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
+        catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn add_key_to_jwt_trust_domain_store_test_duplicate_entry() {
         let (catalog, public_key) = init_key_test();
 
-        let _res = catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
-        let res = catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap_err();
+        let _res = catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone())
+            .await
+            .unwrap();
+        let res = catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key)
+            .await
+            .unwrap_err();
         if let Error::DuplicatedKey(_) = res {
         } else {
             panic!("Wrong error type returned for add_key_to_jwt_trust_domain_store")
@@ -288,31 +330,52 @@ mod tests {
     async fn remove_key_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
-        catalog.remove_key_jwt_trust_domain_store("dummy", "my_key").await.unwrap();
-    }   
-    
+        catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key)
+            .await
+            .unwrap();
+        catalog
+            .remove_key_jwt_trust_domain_store("dummy", "my_key")
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn remove_key_jwt_trust_domain_store_test_entry_not_exist() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key).await.unwrap();
-        let res = catalog.remove_key_jwt_trust_domain_store("dummy", "another_key").await.unwrap_err();
+        catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key)
+            .await
+            .unwrap();
+        let res = catalog
+            .remove_key_jwt_trust_domain_store("dummy", "another_key")
+            .await
+            .unwrap_err();
         if let Error::KeyNotFound(_) = res {
         } else {
             panic!("Wrong error type returned for remove_key_jwt_trust_domain_store")
         };
-    } 
+    }
 
     #[tokio::test]
     async fn get_keys_from_jwt_trust_domain_store_test_happy_path() {
         let (catalog, public_key) = init_key_test();
 
-        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone()).await.unwrap();
-        catalog.add_key_to_jwt_trust_domain_store("dummy", "my_key2", public_key).await.unwrap();
+        catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key.clone())
+            .await
+            .unwrap();
+        catalog
+            .add_key_to_jwt_trust_domain_store("dummy", "my_key2", public_key)
+            .await
+            .unwrap();
 
-        let keys = catalog.get_keys_from_jwt_trust_domain_store("dummy").await.unwrap();
+        let keys = catalog
+            .get_keys_from_jwt_trust_domain_store("dummy")
+            .await
+            .unwrap();
 
         assert_eq!(keys.len(), 2);
-    } 
+    }
 }

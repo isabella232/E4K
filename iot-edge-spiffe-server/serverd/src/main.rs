@@ -13,7 +13,6 @@
 use config::Config;
 use error::Error;
 use std::{error::Error as StdError, sync::Arc};
-use key_manager;
 
 const CONFIG_DEFAULT_PATH: &str = "../Config.toml";
 
