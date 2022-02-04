@@ -8,6 +8,10 @@ pub enum Error {
     DuplicatedEntry(String),
     #[error("Entry {0} do not exists")]
     EntryNotFound(String),
+    #[error("Key {0} already exist")]
+    DuplicatedKey(String),
+    #[error("Key {0} do not exists")]
+    KeyNotFound(String),
     #[error("Invalid page size")]
     InvalidPageSize(),
 }

@@ -10,7 +10,9 @@
     clippy::too_many_lines
 )]
 
+use openssl::pkey::{PKey, Public};
 use server_admin_api::RegistrationEntry;
+
 
 pub mod inmemory;
 
@@ -27,4 +29,8 @@ pub trait Catalog: Sync + Send {
         page_token: Option<String>,
         page_size: usize,
     ) -> Result<(Vec<RegistrationEntry>, Option<String>), Self::Error>;
+
+    async fn add_key_to_trust_domain_store(&self, trust_domain: &str, kid: &str, public_key: PKey<Public>) -> Result<(), Self::Error>;
+    async fn remove_key_trust_domain_store(&self, trust_domain: &str, kid: &str) -> Result<(), Self::Error>;
+    async fn get_keys_from_trust_domain_store(&self, trust_domain: &str) -> Result<Vec<PKey<Public>>, Self::Error>;    
 }
