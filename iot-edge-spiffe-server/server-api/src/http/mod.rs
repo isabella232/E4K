@@ -1,5 +1,7 @@
-use catalog::{Entries, TrustBundleStore};
 // Copyright (c) Microsoft. All rights reserved.
+
+use catalog::{Entries, TrustBundleStore};
+
 use http_common::make_service;
 use key_store::KeyStore;
 use server_agent_api::ApiVersion;
