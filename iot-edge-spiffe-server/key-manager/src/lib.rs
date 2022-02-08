@@ -12,7 +12,7 @@
 
 mod error;
 
-use catalog::Catalog;
+use catalog::TrustBundleStore;
 use common::{get_epoch_time, KeyType};
 use config::Config;
 use error::Error;
@@ -49,7 +49,7 @@ struct Slots {
 pub struct Manager<C, D>
 where
     C: KeyStore + Send + Sync,
-    D: Catalog + Send + Sync,
+    D: TrustBundleStore + Send + Sync + 'static,
 {
     trust_domain: String,
     catalog: Arc<D>,
@@ -63,7 +63,7 @@ where
 impl<C, D> Manager<C, D>
 where
     C: KeyStore + Send + Sync,
-    D: Catalog + Send + Sync,
+    D: TrustBundleStore + Send + Sync + 'static,
 {
     pub async fn new(
         config: &Config,
@@ -180,7 +180,7 @@ where
 
         // Remove from catalog
         self.catalog
-            .remove_key_jwt_trust_domain_store(&self.trust_domain, id)
+            .remove_jwt_key(&self.trust_domain, id)
             .await
             .map_err(|err| Error::DeletingPublicKey(Box::new(err)))
     }
@@ -193,7 +193,7 @@ where
             .map_err(|err| Error::CreatingNewKey(Box::new(err)))?;
 
         self.catalog
-            .add_key_to_jwt_trust_domain_store(&self.trust_domain, id, public_key)
+            .add_jwt_key(&self.trust_domain, id, public_key)
             .await
             .map_err(|err| Error::AddingPulicKey(Box::new(err)))
     }
@@ -201,7 +201,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use catalog::{inmemory, Catalog};
+    use catalog::{inmemory, TrustBundleStore};
     use config::{Config, KeyPluginConfigDisk};
     use key_store::{disk, KeyStore};
     use std::sync::Arc;
@@ -245,10 +245,7 @@ mod tests {
         let (manager, catalog, key_store) = init().await;
 
         // Check the public key has been uploaded
-        let res = catalog
-            .get_keys_from_jwt_trust_domain_store("dummy")
-            .await
-            .unwrap();
+        let res = catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store
@@ -267,10 +264,7 @@ mod tests {
             .unwrap();
 
         // Check it was removed from catalog
-        let res = catalog
-            .get_keys_from_jwt_trust_domain_store("dummy")
-            .await
-            .unwrap();
+        let res = catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 0);
 
         // Check private key is in not the store
@@ -325,10 +319,7 @@ mod tests {
         let current_jwt_key_id = slots.current_jwt_key.id.clone();
 
         // Now there should be 2 keys. One in the current slot, the other in the next.
-        let res = catalog
-            .get_keys_from_jwt_trust_domain_store("dummy")
-            .await
-            .unwrap();
+        let res = catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 2);
 
         // Check private key is in the store
@@ -377,10 +368,7 @@ mod tests {
         assert!(prev_jwt_key.is_none());
 
         // Now there should be only 1 keys. One in the current slot
-        let res = catalog
-            .get_keys_from_jwt_trust_domain_store("dummy")
-            .await
-            .unwrap();
+        let res = catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store

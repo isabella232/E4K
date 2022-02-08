@@ -15,8 +15,10 @@ use server_admin_api::RegistrationEntry;
 
 pub mod inmemory;
 
+// Entries are writen from the identity manager into the server. Entries contains all the necessary information
+// to identify a workload and issue a new about a SPIFFE identity to it.
 #[async_trait::async_trait]
-pub trait Catalog: Sync + Send {
+pub trait Entries: Sync + Send {
     type Error: std::error::Error + 'static;
 
     async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, Self::Error>;
@@ -28,20 +30,21 @@ pub trait Catalog: Sync + Send {
         page_token: Option<String>,
         page_size: usize,
     ) -> Result<(Vec<RegistrationEntry>, Option<String>), Self::Error>;
+}
 
-    async fn add_key_to_jwt_trust_domain_store(
+// The trust bundle store contains all the public keys necessary to validate  JWT tokens or trust certificates.
+// Those keys are writen by the key manager after a key rotation and read whenever the trust bundle is accessed.
+// The keys are sorted per trust domain.
+#[async_trait::async_trait]
+pub trait TrustBundleStore: Sync + Send {
+    type Error: std::error::Error + 'static;
+
+    async fn add_jwt_key(
         &self,
         trust_domain: &str,
         kid: &str,
         public_key: PKey<Public>,
     ) -> Result<(), Self::Error>;
-    async fn remove_key_jwt_trust_domain_store(
-        &self,
-        trust_domain: &str,
-        kid: &str,
-    ) -> Result<(), Self::Error>;
-    async fn get_keys_from_jwt_trust_domain_store(
-        &self,
-        trust_domain: &str,
-    ) -> Result<Vec<PKey<Public>>, Self::Error>;
+    async fn remove_jwt_key(&self, trust_domain: &str, kid: &str) -> Result<(), Self::Error>;
+    async fn get_jwt_keys(&self, trust_domain: &str) -> Result<Vec<PKey<Public>>, Self::Error>;
 }

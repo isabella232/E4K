@@ -10,7 +10,7 @@
     clippy::too_many_lines
 )]
 
-use catalog::Catalog;
+use catalog::Entries;
 use config::Config;
 use error::Error;
 use http_common::Connector;
@@ -25,10 +25,10 @@ mod http;
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
-pub async fn start_admin_api<C: Catalog + Send + Sync + 'static>(
-    config: &Config,
-    catalog: Arc<C>,
-) -> Result<(), io::Error> {
+pub async fn start_admin_api<C>(config: &Config, catalog: Arc<C>) -> Result<(), io::Error>
+where
+    C: Entries + Send + Sync + 'static,
+{
     let api = Api { catalog };
 
     let service = http::Service { api: api.clone() };
@@ -57,14 +57,14 @@ pub mod uri {
 
 struct Api<C>
 where
-    C: Catalog + Send + Sync,
+    C: Entries + Send + Sync + 'static,
 {
     catalog: Arc<C>,
 }
 
 impl<C> Clone for Api<C>
 where
-    C: Catalog + Send + Sync,
+    C: Entries + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -75,7 +75,7 @@ where
 
 impl<C> Api<C>
 where
-    C: Catalog + Send + Sync,
+    C: Entries + Send + Sync + 'static,
 {
     pub async fn create_registration_entries(
         &self,
