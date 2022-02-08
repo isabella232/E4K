@@ -20,7 +20,7 @@ use key_store::KeyStore;
 use log::error;
 use std::sync::Arc;
 use tokio::{
-    sync::Mutex,
+    sync::RwLock,
     task::JoinHandle,
     time::{self, Duration},
 };
@@ -40,6 +40,12 @@ struct JWTKeyEntry {
     expiry: u64,
 }
 
+struct Slots {
+    previous_jwt_key: Option<JWTKeyEntry>,
+    current_jwt_key: JWTKeyEntry,
+    next_jwt_key: Option<JWTKeyEntry>,
+}
+
 pub struct Manager<C, D>
 where
     C: KeyStore + Send + Sync,
@@ -51,9 +57,7 @@ where
     jwt_key_type: KeyType,
     jwt_key_ttl: u64,
 
-    previous_jwt_key_slot: Mutex<Option<JWTKeyEntry>>,
-    current_jwt_key_slot: Mutex<JWTKeyEntry>,
-    next_jwt_key_slot: Mutex<Option<JWTKeyEntry>>,
+    slots: RwLock<Slots>,
 }
 
 impl<C, D> Manager<C, D>
@@ -74,15 +78,19 @@ where
             expiry: current_time + config.jwt_key_ttl,
         };
 
+        let slots = Slots {
+            previous_jwt_key: None,
+            current_jwt_key: jwt_key,
+            next_jwt_key: None,
+        };
+
         let key_manager = Manager::<C, D> {
             trust_domain: config.trust_domain.clone(),
             catalog,
             key_store,
             jwt_key_type: config.jwt_key_type,
             jwt_key_ttl: config.jwt_key_ttl,
-            previous_jwt_key_slot: Mutex::new(None),
-            current_jwt_key_slot: Mutex::new(jwt_key),
-            next_jwt_key_slot: Mutex::new(None),
+            slots: RwLock::new(slots),
         };
 
         key_manager.create_key_and_add_to_catalog(&id).await?;
@@ -114,18 +122,16 @@ where
     // and start using the next key for signing. We move current key to sleep in previous and next key to active in current.
     // Then some more time later, when the previous key expire, it is destroyed.
     async fn rotate_periodic_logic(&self, current_time: u64) -> Result<(), Error> {
-        let next_jwt_key = &mut *self.next_jwt_key_slot.lock().await;
-        let current_jwt_key = &mut *self.current_jwt_key_slot.lock().await;
-        let previous_jwt_key = &mut *self.previous_jwt_key_slot.lock().await;
+        let slots = &mut *self.slots.write().await;
 
         let threshold =
-            current_jwt_key.expiry - self.jwt_key_ttl / PREPARE_NEXT_KEY_FOR_ROTATION_MARGIN;
+            slots.current_jwt_key.expiry - self.jwt_key_ttl / PREPARE_NEXT_KEY_FOR_ROTATION_MARGIN;
 
         // Create new key in the next slot. The pulic part of the key is added to the catalog.
-        if next_jwt_key.is_none() && (current_time > threshold) {
+        if slots.next_jwt_key.is_none() && (current_time > threshold) {
             let id = Uuid::new_v4().to_string();
 
-            *next_jwt_key = Some(JWTKeyEntry {
+            slots.next_jwt_key = Some(JWTKeyEntry {
                 id: id.clone(),
                 expiry: current_time + self.jwt_key_ttl,
             });
@@ -133,29 +139,32 @@ where
             self.create_key_and_add_to_catalog(&id).await?;
         }
 
-        let threshold = current_jwt_key.expiry - self.jwt_key_ttl / ROTATE_CURRENT_KEY_MARGIN;
+        let threshold = slots.current_jwt_key.expiry - self.jwt_key_ttl / ROTATE_CURRENT_KEY_MARGIN;
 
         if current_time > threshold {
-            let jwt_key = next_jwt_key.clone().ok_or_else(Error::NextJwtKeyMissing)?;
+            let jwt_key = slots
+                .next_jwt_key
+                .clone()
+                .ok_or_else(Error::NextJwtKeyMissing)?;
 
             // Rotate keys, current key is the one used for signing.
             // This should never happen, the key should have expired a long time ago. But we clean up nonetheless and raise an error.
-            if let Some(jwt_key) = previous_jwt_key {
+            if let Some(jwt_key) = &slots.previous_jwt_key {
                 log::error!("Request of key current slot deprecation while key in previous slot has not expired yet");
                 self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
                     .await?;
             }
-            *previous_jwt_key = Some(current_jwt_key.clone());
-            *current_jwt_key = jwt_key;
-            *next_jwt_key = None;
+            slots.previous_jwt_key = Some(slots.current_jwt_key.clone());
+            slots.current_jwt_key = jwt_key;
+            slots.next_jwt_key = None;
         }
 
         // If the key expire before being pushed out. It should not happen though.
-        if let Some(jwt_key) = previous_jwt_key {
+        if let Some(jwt_key) = &slots.previous_jwt_key {
             if current_time > jwt_key.expiry {
                 self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
                     .await?;
-                *previous_jwt_key = None;
+                slots.previous_jwt_key = None;
             }
         }
 
@@ -177,16 +186,11 @@ where
     }
 
     async fn create_key_and_add_to_catalog(&self, id: &str) -> Result<(), Error> {
-        self.key_store
+        let public_key = self
+            .key_store
             .create_key_pair_if_not_exists(id, self.jwt_key_type)
             .await
             .map_err(|err| Error::CreatingNewKey(Box::new(err)))?;
-
-        let public_key = self
-            .key_store
-            .get_public_key(id)
-            .await
-            .map_err(|err| Error::GettingPulicKey(Box::new(err)))?;
 
         self.catalog
             .add_key_to_jwt_trust_domain_store(&self.trust_domain, id, public_key)
@@ -248,7 +252,7 @@ mod tests {
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store
-        let current_jwt_key = manager.current_jwt_key_slot.lock().await;
+        let current_jwt_key = &manager.slots.write().await.current_jwt_key;
         let _key = key_store.get_public_key(&current_jwt_key.id).await.unwrap();
     }
 
@@ -256,7 +260,7 @@ mod tests {
     async fn remove_jwt_key_from_catalog_and_store_test_happy_path() {
         let (manager, catalog, key_store) = init().await;
 
-        let current_jwt_key = manager.current_jwt_key_slot.lock().await;
+        let current_jwt_key = &manager.slots.write().await.current_jwt_key;
         manager
             .remove_jwt_key_from_catalog_and_store(&current_jwt_key.id)
             .await
@@ -309,18 +313,16 @@ mod tests {
             .rotate_periodic_logic(manager.jwt_key_ttl / 2 + 1)
             .await
             .unwrap();
-        let next_jwt_key = &mut *manager.next_jwt_key_slot.lock().await;
-        let current_jwt_key = &mut *manager.current_jwt_key_slot.lock().await;
-        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+        let slots = &mut *manager.slots.write().await;
 
-        assert!(prev_jwt_key.is_none());
+        assert!(slots.previous_jwt_key.is_none());
 
-        let next_jwt_key_id = if let Some(next_jwt_key) = next_jwt_key {
+        let next_jwt_key_id = if let Some(next_jwt_key) = &slots.next_jwt_key {
             next_jwt_key.id.clone()
         } else {
             panic!("No next_jwt_key");
         };
-        let current_jwt_key_id = current_jwt_key.id.clone();
+        let current_jwt_key_id = slots.current_jwt_key.id.clone();
 
         // Now there should be 2 keys. One in the current slot, the other in the next.
         let res = catalog
@@ -344,22 +346,20 @@ mod tests {
             .rotate_periodic_logic(manager.jwt_key_ttl - manager.jwt_key_ttl / 6 + 1)
             .await
             .unwrap();
-        let next_jwt_key = &mut *manager.next_jwt_key_slot.lock().await;
-        let current_jwt_key = &mut *manager.current_jwt_key_slot.lock().await;
-        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+        let slots = &mut *manager.slots.write().await;
 
         // Check key in current slot was moved to prev
-        if let Some(prev_jwt_key) = prev_jwt_key {
+        if let Some(prev_jwt_key) = &slots.previous_jwt_key {
             assert_eq!(prev_jwt_key.id, current_jwt_key_id);
         } else {
             panic!("No prev_jwt_key");
         };
 
         // Check key in next slot was moved to current
-        assert_eq!(current_jwt_key.id, next_jwt_key_id);
+        assert_eq!(slots.current_jwt_key.id, next_jwt_key_id);
 
         //Check key has been removed from slot
-        assert!(next_jwt_key.is_none());
+        assert!(slots.next_jwt_key.is_none());
     }
 
     async fn run_stage3(
@@ -372,7 +372,7 @@ mod tests {
             .rotate_periodic_logic(manager.jwt_key_ttl + 1)
             .await
             .unwrap();
-        let prev_jwt_key = &mut *manager.previous_jwt_key_slot.lock().await;
+        let prev_jwt_key = &manager.slots.write().await.previous_jwt_key;
 
         assert!(prev_jwt_key.is_none());
 

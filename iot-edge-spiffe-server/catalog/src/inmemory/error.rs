@@ -6,11 +6,11 @@ use thiserror::Error;
 pub enum Error {
     #[error("Entry {0} already exist")]
     DuplicatedEntry(String),
-    #[error("Entry {0} do not exists")]
+    #[error("Entry {0} does not exist")]
     EntryNotFound(String),
-    #[error("Key {0} already exist")]
+    #[error("Key {0} already exists")]
     DuplicatedKey(String),
-    #[error("Key {0} do not exists")]
+    #[error("Key {0} does not exist")]
     KeyNotFound(String),
     #[error("Invalid page size")]
     InvalidPageSize(),

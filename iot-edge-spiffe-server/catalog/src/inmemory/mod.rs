@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::Catalog as CatalogTrait;
-use futures_util::lock::Mutex;
 use openssl::pkey::{PKey, Public};
+use parking_lot::{const_mutex, Mutex};
 use server_admin_api::RegistrationEntry;
 
 use self::error::Error;
@@ -25,8 +25,8 @@ impl Catalog {
     #[must_use]
     pub fn new() -> Self {
         Catalog {
-            entries_list: Arc::new(Mutex::new(BTreeMap::new())),
-            jwt_trust_domain_store: Arc::new(Mutex::new(HashMap::new())),
+            entries_list: Arc::new(const_mutex(BTreeMap::new())),
+            jwt_trust_domain_store: Arc::new(const_mutex(HashMap::new())),
         }
     }
 }
@@ -42,7 +42,7 @@ impl CatalogTrait for Catalog {
     type Error = crate::inmemory::Error;
 
     async fn create_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
-        let mut entries_list = self.entries_list.lock().await;
+        let mut entries_list = self.entries_list.lock();
 
         if entries_list.contains_key(&entry.id) {
             return Err(Error::DuplicatedEntry(entry.id));
@@ -54,7 +54,7 @@ impl CatalogTrait for Catalog {
     }
 
     async fn update_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
-        let mut entries_list = self.entries_list.lock().await;
+        let mut entries_list = self.entries_list.lock();
 
         let entry_ptr = entries_list
             .get_mut(&entry.id)
@@ -66,7 +66,7 @@ impl CatalogTrait for Catalog {
     }
 
     async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, Self::Error> {
-        let entries_list = self.entries_list.lock().await;
+        let entries_list = self.entries_list.lock();
 
         let entry = entries_list.get(id);
 
@@ -82,7 +82,7 @@ impl CatalogTrait for Catalog {
         page_token: Option<String>,
         page_size: usize,
     ) -> Result<(Vec<RegistrationEntry>, Option<String>), Self::Error> {
-        let entries_list = self.entries_list.lock().await;
+        let entries_list = self.entries_list.lock();
 
         let mut response: Vec<RegistrationEntry> = Vec::new();
         let mut entry_counter = 0;
@@ -113,7 +113,7 @@ impl CatalogTrait for Catalog {
     }
 
     async fn delete_registration_entry(&self, id: &str) -> Result<(), Self::Error> {
-        let mut entries_list = self.entries_list.lock().await;
+        let mut entries_list = self.entries_list.lock();
 
         if entries_list.contains_key(id) {
             entries_list.remove(id);
@@ -130,7 +130,7 @@ impl CatalogTrait for Catalog {
         kid: &str,
         public_key: PKey<Public>,
     ) -> Result<(), Self::Error> {
-        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
+        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock();
 
         if jwt_trust_domain_store.contains_key(kid) {
             return Err(Error::DuplicatedKey(kid.to_string()));
@@ -146,7 +146,7 @@ impl CatalogTrait for Catalog {
         _trust_domain: &str,
         kid: &str,
     ) -> Result<(), Self::Error> {
-        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
+        let mut jwt_trust_domain_store = self.jwt_trust_domain_store.lock();
 
         if jwt_trust_domain_store.contains_key(kid) {
             jwt_trust_domain_store.remove(kid);
@@ -161,7 +161,7 @@ impl CatalogTrait for Catalog {
         &self,
         _trust_domain: &str,
     ) -> Result<Vec<PKey<Public>>, Self::Error> {
-        let jwt_trust_domain_store = self.jwt_trust_domain_store.lock().await;
+        let jwt_trust_domain_store = self.jwt_trust_domain_store.lock();
 
         Ok(jwt_trust_domain_store
             .values()
@@ -176,6 +176,7 @@ mod tests {
     use server_admin_api::RegistrationEntry;
 
     use crate::Catalog as CatalogTrait;
+    use matches::assert_matches;
 
     use super::*;
 
@@ -214,10 +215,7 @@ mod tests {
             .await
             .unwrap();
         let res = catalog.create_registration_entry(entry).await.unwrap_err();
-        if let Error::DuplicatedEntry(_) = res {
-        } else {
-            panic!("Wrong error type returned for create_registration_entry")
-        };
+        assert_matches!(res, Error::DuplicatedEntry(_));
     }
 
     #[tokio::test]
@@ -236,10 +234,7 @@ mod tests {
         let (catalog, entry) = init_entry_test();
 
         let res = catalog.update_registration_entry(entry).await.unwrap_err();
-        if let Error::EntryNotFound(_) = res {
-        } else {
-            panic!("Wrong error type returned for update_registration_entry")
-        };
+        assert_matches!(res, Error::EntryNotFound(_));
     }
 
     #[tokio::test]
@@ -261,10 +256,7 @@ mod tests {
             .delete_registration_entry(&entry.id)
             .await
             .unwrap_err();
-        if let Error::EntryNotFound(_) = res {
-        } else {
-            panic!("Wrong error type returned for delete_registration_entry")
-        };
+        assert_matches!(res, Error::EntryNotFound(_));
     }
 
     #[tokio::test]
@@ -282,10 +274,7 @@ mod tests {
         let (catalog, entry) = init_entry_test();
 
         let res = catalog.get_registration_entry(&entry.id).await.unwrap_err();
-        if let Error::EntryNotFound(_) = res {
-        } else {
-            panic!("Wrong error type returned for get_registration_entry")
-        };
+        assert_matches!(res, Error::EntryNotFound(_));
     }
 
     fn init_key_test() -> (Catalog, PKey<Public>) {
@@ -325,10 +314,7 @@ mod tests {
             .add_key_to_jwt_trust_domain_store("dummy", "my_key", public_key)
             .await
             .unwrap_err();
-        if let Error::DuplicatedKey(_) = res {
-        } else {
-            panic!("Wrong error type returned for add_key_to_jwt_trust_domain_store")
-        };
+        assert_matches!(res, Error::DuplicatedKey(_));
     }
 
     #[tokio::test]
@@ -357,10 +343,7 @@ mod tests {
             .remove_key_jwt_trust_domain_store("dummy", "another_key")
             .await
             .unwrap_err();
-        if let Error::KeyNotFound(_) = res {
-        } else {
-            panic!("Wrong error type returned for remove_key_jwt_trust_domain_store")
-        };
+        assert_matches!(res, Error::KeyNotFound(_));
     }
 
     #[tokio::test]

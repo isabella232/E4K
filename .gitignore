@@ -1,4 +1,1 @@
-iot-edge-spiffe-server/target/
-common/keys/target
-common/server-admin-api/target/
-common/server-agent-api/target/
+target/

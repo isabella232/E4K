@@ -24,7 +24,7 @@ pub trait KeyStore: Sync + Send {
         &self,
         id: &str,
         key_type: KeyType,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<PKey<Public>, Self::Error>;
     async fn sign(
         &self,
         id: &str,

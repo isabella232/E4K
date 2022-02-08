@@ -50,19 +50,24 @@ impl KeyPluginTrait for KeyStore {
         &self,
         id: &str,
         key_type: KeyType,
-    ) -> Result<(), Error> {
+    ) -> Result<PKey<Public>, Error> {
         let path = &self.get_key_path(id);
 
-        if load_inner(path).await?.is_none() {
+        let key_pair = if let Some(key_pair) = load_inner(path).await? {
+            key_pair
+        } else {
             create_inner(path, key_type).await?;
-            if load_inner(path).await?.is_none() {
+
+            if let Some(key_pair) = load_inner(path).await? {
+                key_pair
+            } else {
                 return Err(Error::KeyNotFound(
                     "key created successfully but could not be found".to_string(),
                 ));
             }
-        }
+        };
 
-        Ok(())
+        Ok(key_pair.public_key)
     }
 
     async fn sign(
@@ -79,7 +84,7 @@ impl KeyPluginTrait for KeyStore {
 
         let private_key = key_pair.private_key;
 
-        let result = match (key_type, private_key.ec_key(), private_key.rsa()) {
+        match (key_type, private_key.ec_key(), private_key.rsa()) {
             (KeyType::ECP256, Ok(ec_key), _) => {
                 let signature_len = {
                     let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
@@ -97,13 +102,11 @@ impl KeyPluginTrait for KeyStore {
                 let signature = openssl::ecdsa::EcdsaSig::sign(digest, &ec_key)?;
                 let signature = signature.to_der()?;
 
-                Some((signature_len, signature))
+                Ok((signature_len, signature))
             }
 
-            _ => None,
-        };
-
-        result.ok_or_else(Error::UnsupportedMechanismType)
+            _ => Err(Error::UnsupportedMechanismType()),
+        }
     }
 
     async fn get_public_key(&self, id: &str) -> Result<PKey<Public>, Error> {
@@ -144,7 +147,7 @@ async fn load_inner(path: &Path) -> Result<Option<KeyPair>, Error> {
     }
 }
 
-async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), Error> {
+async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<KeyPair, Error> {
     let private_key = match preferred_algorithm {
         KeyType::ECP256 => {
             let mut group = ec::EcGroup::from_curve_name(nid::Nid::X9_62_PRIME256V1)?;
@@ -167,15 +170,24 @@ async fn create_inner(path: &Path, preferred_algorithm: KeyType) -> Result<(), E
     let private_key_pem = private_key.private_key_to_pem_pkcs8()?;
     fs::write(path, &private_key_pem)
         .await
-        .map_err(Error::FileWrite)
+        .map_err(Error::FileWrite)?;
+
+    // Copy private_key's public parameters into a new public key
+    let public_key_der = private_key.public_key_to_der()?;
+    let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der)?;
+
+    Ok(KeyPair {
+        public_key,
+        private_key,
+    })
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use matches::assert_matches;
     use tempdir::TempDir;
     use uuid::Uuid;
-
-    use super::*;
 
     fn init() -> (String, KeyStore) {
         let dir = TempDir::new("test").unwrap();
@@ -243,11 +255,7 @@ mod tests {
         let id = Uuid::new_v4().to_string();
 
         let error = plugin.delete_key_pair(&id).await.unwrap_err();
-
-        if let Error::FileDelete(_) = error {
-        } else {
-            panic!("Wrong error type returned for delete_key_pair")
-        };
+        assert_matches!(error, Error::FileDelete(_));
     }
 
     #[tokio::test]
@@ -275,11 +283,7 @@ mod tests {
         let id = Uuid::new_v4().to_string();
 
         let error = plugin.get_public_key(&id).await.unwrap_err();
-
-        if let Error::KeyNotFound(_) = error {
-        } else {
-            panic!("Wrong error type returned for get_public_key")
-        };
+        assert_matches!(error, Error::KeyNotFound(_));
     }
 
     #[tokio::test]
@@ -311,10 +315,6 @@ mod tests {
         let digest = "hello world".as_bytes();
 
         let error = plugin.sign(&id, KeyType::ECP256, digest).await.unwrap_err();
-
-        if let Error::KeyNotFound(_) = error {
-        } else {
-            panic!("Wrong error type returned for get_public_key")
-        };
+        assert_matches!(error, Error::KeyNotFound(_));
     }
 }
