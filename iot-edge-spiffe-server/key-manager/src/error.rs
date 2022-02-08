@@ -16,4 +16,6 @@ pub enum Error {
     AddingPulicKey(Box<dyn std::error::Error>),
     #[error("Tried to rotate but there is not next jwt key to replace the current one")]
     NextJwtKeyMissing(),
+    #[error("Error while signing digest with current key {0}")]
+    SigningDigest(Box<dyn std::error::Error>),
 }

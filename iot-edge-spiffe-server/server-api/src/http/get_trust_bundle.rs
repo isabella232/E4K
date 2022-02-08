@@ -2,25 +2,35 @@
 
 use std::borrow::Cow;
 
+use catalog::{Entries, TrustBundleStore};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
+use key_store::KeyStore;
 use serde::de::IgnoredAny;
 use server_agent_api::{get_trust_bundle, ApiVersion};
 
 use crate::{uri, Api};
 
-pub(super) struct Route {
+pub(super) struct Route<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
     x509_cas: Option<String>,
     jwt_keys: Option<String>,
-    api: Api,
+    api: Api<C, D>,
 }
 
 #[async_trait::async_trait]
-impl server::Route for Route {
+impl<C, D> server::Route for Route<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
     type ApiVersion = ApiVersion;
     type DeleteBody = IgnoredAny;
     type PostBody = IgnoredAny;
-    type Service = super::Service;
+    type Service = super::Service<C, D>;
     type PutBody = IgnoredAny;
 
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion> {

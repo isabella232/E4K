@@ -14,11 +14,11 @@ pub enum Error {
     FileWrite(io::Error),
     #[error("Failed to delete key from file system: {0}")]
     FileDelete(io::Error),
-    #[error("Openssl Error")]
+    #[error("Openssl Error: {0}")]
     OpenSSL(Box<dyn std::error::Error + Send>),
     #[error("Failed to convert number to usize: {0}, {1}")]
     ConvertToUsize(TryFromIntError, String),
-    #[error("Invalid parameters")]
+    #[error("Invalid parameters {0}")]
     InvalidParameters(String),
     #[error("Unsupported Key pair type")]
     UnsupportedKeyPairType(),
@@ -34,14 +34,12 @@ impl From<openssl::error::Error> for Error {
 
 impl From<openssl::error::ErrorStack> for Error {
     fn from(err: openssl::error::ErrorStack) -> Self {
-        log::error!("{}", err);
         Error::OpenSSL(Box::new(err))
     }
 }
 
 impl From<openssl2::Error> for Error {
     fn from(err: openssl2::Error) -> Self {
-        log::error!("{}", err);
         Error::OpenSSL(Box::new(err))
     }
 }

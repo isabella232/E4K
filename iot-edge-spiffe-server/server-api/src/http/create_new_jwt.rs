@@ -1,21 +1,31 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use catalog::{Entries, TrustBundleStore};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
+use key_store::KeyStore;
 use serde::de::IgnoredAny;
 use server_agent_api::{create_new_jwt, ApiVersion};
 use std::borrow::Cow;
 
 use crate::{uri, Api};
 
-pub(super) struct Route {
-    api: Api,
+pub(super) struct Route<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
+    api: Api<C, D>,
 }
 
 #[async_trait::async_trait]
-impl server::Route for Route {
+impl<C, D> server::Route for Route<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
     type ApiVersion = ApiVersion;
-    type Service = super::Service;
+    type Service = super::Service<C, D>;
     type DeleteBody = IgnoredAny;
     type PostBody = create_new_jwt::Request;
     type PutBody = IgnoredAny;

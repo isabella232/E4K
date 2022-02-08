@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="329px" preserveAspectRatio="none" style="width:487px;height:329px;background:#FFFFFF;" version="1.1" viewBox="0 0 487 329" width="487px" zoomAndPan="magnify"><defs><filter height="300%" id="f1xthqi8q0bkze" width="300%" x="-1" y="-1"><feGaussianBlur result="blurOut" stdDeviation="2.0"/><feColorMatrix in="blurOut" result="blurOut2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .4 0"/><feOffset dx="4.0" dy="4.0" in="blurOut2" result="blurOut3"/><feBlend in="SourceGraphic" in2="blurOut3" mode="normal"/></filter></defs><g><!--MD5=[3616a684e46855f242f75be5ea5d28b8]
+cluster IoTEdgeSPIFFE Agent--><rect fill="#FFFFFF" filter="url(#f1xthqi8q0bkze)" height="225" style="stroke:#000000;stroke-width:1.5;" width="468" x="7" y="7"/><path d="M168,7 L168,17.6094 L158,27.6094 L7,27.6094 " fill="none" style="stroke:#000000;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" textLength="151" x="10" y="22.5332">IoTEdgeSPIFFE Agent</text><!--MD5=[23ec4f1fff159d71b633b9f85a9aab58]
+entity cache--><path d="M35,53.5 C35,43.5 64,43.5 64,43.5 C64,43.5 93,43.5 93,53.5 L93,80.1094 C93,90.1094 64,90.1094 64,90.1094 C64,90.1094 35,90.1094 35,80.1094 L35,53.5 " fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" style="stroke:#000000;stroke-width:1.5;"/><path d="M35,53.5 C35,63.5 64,63.5 64,63.5 C64,63.5 93,63.5 93,53.5 " fill="none" style="stroke:#000000;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="38" x="45" y="82.0332">cache</text><!--MD5=[a6a9dcc9f5d93f845390bb8114bf3bfd]
+entity Node attestation--><rect fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" height="47.6094" style="stroke:#A80036;stroke-width:1.5;" width="143" x="23.5" y="159.5"/><rect fill="#FEFECE" height="10" style="stroke:#A80036;stroke-width:1.5;" width="15" x="146.5" y="164.5"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="144.5" y="166.5"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="144.5" y="170.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="103" x="38.5" y="194.0332">Node attestation</text><!--MD5=[81c6a18637047caddd8f29484657b979]
+entity Workload attestation--><rect fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" height="47.6094" style="stroke:#A80036;stroke-width:1.5;" width="170" x="128" y="43"/><rect fill="#FEFECE" height="10" style="stroke:#A80036;stroke-width:1.5;" width="15" x="278" y="48"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="276" y="50"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="276" y="54"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="130" x="143" y="77.5332">Workload attestation</text><!--MD5=[253a18990c01018c42b3b627f494cf42]
+entity Workload API--><rect fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" height="47.6094" style="stroke:#A80036;stroke-width:1.5;" width="125" x="333.5" y="43"/><rect fill="#FEFECE" height="10" style="stroke:#A80036;stroke-width:1.5;" width="15" x="438.5" y="48"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="436.5" y="50"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="436.5" y="54"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="85" x="348.5" y="77.5332">Workload API</text><!--MD5=[ea9d16848d383a2daf539500667132aa]
+entity Background\n tasks--><rect fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" height="65.2188" style="stroke:#A80036;stroke-width:1.5;" width="116" x="343" y="151"/><rect fill="#FEFECE" height="10" style="stroke:#A80036;stroke-width:1.5;" width="15" x="439" y="156"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="437" y="158"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="437" y="162"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="76" x="358" y="185.5332">Background</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="33" x="362" y="203.1426">tasks</text><!--MD5=[617513e475bab683c122015175e7c2ba]
+entity Key plugin--><rect fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" height="47.6094" style="stroke:#A80036;stroke-width:1.5;" width="106" x="202" y="159.5"/><rect fill="#FEFECE" height="10" style="stroke:#A80036;stroke-width:1.5;" width="15" x="288" y="164.5"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="286" y="166.5"/><rect fill="#FEFECE" height="2" style="stroke:#A80036;stroke-width:1.5;" width="4" x="286" y="170.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="66" x="217" y="194.0332">Key plugin</text><!--MD5=[c4629f4fe8b0781ca0e133ad2c48efb2]
+entity Disk--><path d="M184.5,286 C184.5,276 208,276 208,276 C208,276 231.5,276 231.5,286 L231.5,312.6094 C231.5,322.6094 208,322.6094 208,322.6094 C208,322.6094 184.5,322.6094 184.5,312.6094 L184.5,286 " fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" style="stroke:#000000;stroke-width:1.5;"/><path d="M184.5,286 C184.5,296 208,296 208,296 C208,296 231.5,296 231.5,286 " fill="none" style="stroke:#000000;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="27" x="194.5" y="314.5332">Disk</text><!--MD5=[bdfad404fdf3df882c3ac71aa5606f51]
+entity Memory--><path d="M267,286 C267,276 302,276 302,276 C302,276 337,276 337,286 L337,312.6094 C337,322.6094 302,322.6094 302,322.6094 C302,322.6094 267,322.6094 267,312.6094 L267,286 " fill="#FEFECE" filter="url(#f1xthqi8q0bkze)" style="stroke:#000000;stroke-width:1.5;"/><path d="M267,286 C267,296 302,296 302,296 C302,296 337,296 337,286 " fill="none" style="stroke:#000000;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="50" x="277" y="314.5332">Memory</text><!--MD5=[d604c48f491793e40858c7ba6b8ca4b9]
+link cache to Node attestation--><!--MD5=[62c337b7d8fb802573c0d55653f7c54e]
+reverse link Key plugin to Node attestation--><path d="M196.57,183.5 C186.57,183.5 176.56,183.5 166.56,183.5 " fill="none" id="Key plugin-backto-Node attestation" style="stroke:#A80036;stroke-width:1.0;"/><polygon fill="#A80036" points="201.8,183.5,192.8,179.5,196.8,183.5,192.8,187.5,201.8,183.5" style="stroke:#A80036;stroke-width:1.0;"/><!--MD5=[e68cc46f9c1f5e5c19be3cc431957f48]
+link Key plugin to Disk--><path d="M245.49,207.57 C237.92,225.92 227.31,251.66 219.31,271.06 " fill="none" id="Key plugin-to-Disk" style="stroke:#A80036;stroke-width:1.0;"/><polygon fill="#A80036" points="217.34,275.85,224.476,269.062,219.2509,271.2296,217.0833,266.0045,217.34,275.85" style="stroke:#A80036;stroke-width:1.0;"/><!--MD5=[a148a3163ddac1ace302fe49b103331e]
+link Key plugin to Memory--><path d="M264.51,207.57 C272.08,225.92 282.69,251.66 290.69,271.06 " fill="none" id="Key plugin-to-Memory" style="stroke:#A80036;stroke-width:1.0;"/><polygon fill="#A80036" points="292.66,275.85,292.9167,266.0045,290.7491,271.2296,285.524,269.062,292.66,275.85" style="stroke:#A80036;stroke-width:1.0;"/><!--MD5=[f5f6112e3b165232aa9a8276b06f6f56]
+link Workload attestation to Workload API--><!--MD5=[d2a7d50d5db00375273edf3731b205a5]
+link Workload attestation to Background\n tasks--><!--MD5=[a748f0ff53779ef7f12757e3956adf99]
+@startuml IoTEdge_SPIFFE_Agent
+database "Disk"
+database "Memory"
+
+frame "IoTEdgeSPIFFE Agent" {
+database "cache"  
+[Node attestation]
+[Workload attestation]
+[Node attestation]
+[Workload API]
+[Background\n tasks]
+[cache]-[hidden]down->[Node attestation]
+[Node attestation]-left->[Key plugin]
+[Key plugin] -down->[Disk]
+[Key plugin] -down->[Memory]
+}
+
+
+
+
+@enduml
+
+PlantUML version 1.2022.0(Tue Jan 11 08:16:42 PST 2022)
+(GPL source distribution)
+Java Runtime: Java(TM) SE Runtime Environment
+JVM: Java HotSpot(TM) Client VM
+Default Encoding: Cp1252
+Language: en
+Country: US
+--></g></svg>

@@ -64,7 +64,7 @@ pub mod update_registration_entries {
     }
 }
 
-pub mod list_registration_entries {
+pub mod list_all {
     use crate::RegistrationEntry;
 
     pub struct Params {

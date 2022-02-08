@@ -17,6 +17,7 @@ server-api = { path = "../server-api" }
 catalog = { path = "../catalog" }
 config = { path = "../config" }
 key-manager = { path = "../key-manager" }
+key-store = { path = "../key-store" }
 
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 

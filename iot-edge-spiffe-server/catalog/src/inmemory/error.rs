@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Entry {0} already exist")]
+    #[error("Entry {0} already exists")]
     DuplicatedEntry(String),
     #[error("Entry {0} does not exist")]
     EntryNotFound(String),

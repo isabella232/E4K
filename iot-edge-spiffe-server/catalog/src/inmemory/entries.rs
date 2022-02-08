@@ -10,7 +10,7 @@ use super::{error::Error, Catalog};
 impl Entries for Catalog {
     type Error = crate::inmemory::Error;
 
-    async fn create_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
+    async fn create(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock();
 
         if entries_list.contains_key(&entry.id) {
@@ -22,7 +22,7 @@ impl Entries for Catalog {
         Ok(())
     }
 
-    async fn update_registration_entry(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
+    async fn update(&self, entry: RegistrationEntry) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock();
 
         let entry_ptr = entries_list
@@ -34,7 +34,7 @@ impl Entries for Catalog {
         Ok(())
     }
 
-    async fn get_registration_entry(&self, id: &str) -> Result<RegistrationEntry, Self::Error> {
+    async fn get(&self, id: &str) -> Result<RegistrationEntry, Self::Error> {
         let entries_list = self.entries_list.lock();
 
         let entry = entries_list.get(id);
@@ -46,7 +46,7 @@ impl Entries for Catalog {
         }
     }
 
-    async fn list_registration_entries(
+    async fn list_all(
         &self,
         page_token: Option<String>,
         page_size: usize,
@@ -81,7 +81,7 @@ impl Entries for Catalog {
         Ok((response, page_token))
     }
 
-    async fn delete_registration_entry(&self, id: &str) -> Result<(), Self::Error> {
+    async fn delete(&self, id: &str) -> Result<(), Self::Error> {
         let mut entries_list = self.entries_list.lock();
 
         if entries_list.contains_key(id) {
@@ -125,18 +125,15 @@ mod tests {
     async fn create_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        catalog.create_registration_entry(entry).await.unwrap();
+        catalog.create(entry).await.unwrap();
     }
 
     #[tokio::test]
     async fn create_registration_entry_test_duplicate_entry() {
         let (catalog, entry) = init_entry_test();
 
-        catalog
-            .create_registration_entry(entry.clone())
-            .await
-            .unwrap();
-        let res = catalog.create_registration_entry(entry).await.unwrap_err();
+        catalog.create(entry.clone()).await.unwrap();
+        let res = catalog.create(entry).await.unwrap_err();
         assert_matches!(res, Error::DuplicatedEntry(_));
     }
 
@@ -144,18 +141,15 @@ mod tests {
     async fn update_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        catalog
-            .create_registration_entry(entry.clone())
-            .await
-            .unwrap();
-        catalog.update_registration_entry(entry).await.unwrap();
+        catalog.create(entry.clone()).await.unwrap();
+        catalog.update(entry).await.unwrap();
     }
 
     #[tokio::test]
     async fn update_registration_entry_test_entry_not_exist() {
         let (catalog, entry) = init_entry_test();
 
-        let res = catalog.update_registration_entry(entry).await.unwrap_err();
+        let res = catalog.update(entry).await.unwrap_err();
         assert_matches!(res, Error::EntryNotFound(_));
     }
 
@@ -163,21 +157,15 @@ mod tests {
     async fn delete_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        catalog
-            .create_registration_entry(entry.clone())
-            .await
-            .unwrap();
-        catalog.delete_registration_entry(&entry.id).await.unwrap();
+        catalog.create(entry.clone()).await.unwrap();
+        catalog.delete(&entry.id).await.unwrap();
     }
 
     #[tokio::test]
     async fn delete_registration_entry_test_entry_not_exist() {
         let (catalog, entry) = init_entry_test();
 
-        let res = catalog
-            .delete_registration_entry(&entry.id)
-            .await
-            .unwrap_err();
+        let res = catalog.delete(&entry.id).await.unwrap_err();
         assert_matches!(res, Error::EntryNotFound(_));
     }
 
@@ -185,8 +173,8 @@ mod tests {
     async fn get_registration_entry_test_happy_path() {
         let (catalog, entry) = init_entry_test();
 
-        let _res = catalog.create_registration_entry(entry.clone()).await;
-        let res = catalog.get_registration_entry(&entry.id).await;
+        let _res = catalog.create(entry.clone()).await;
+        let res = catalog.get(&entry.id).await;
 
         assert!(res.is_ok());
     }
@@ -195,7 +183,7 @@ mod tests {
     async fn get_registration_entry_test_entry_not_exist() {
         let (catalog, entry) = init_entry_test();
 
-        let res = catalog.get_registration_entry(&entry.id).await.unwrap_err();
+        let res = catalog.get(&entry.id).await.unwrap_err();
         assert_matches!(res, Error::EntryNotFound(_));
     }
 }

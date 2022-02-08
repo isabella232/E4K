@@ -17,6 +17,7 @@ common = { path = "../common" }
 key-store = { path = "../key-store" }
 
 [dev-dependencies]
+matches = "0.1.9"
 tempdir = "0.3.7"
 
 common = { path = "../common", features = ["tests"] }

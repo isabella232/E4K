@@ -19,9 +19,12 @@ url = "2"
 
 catalog = { path = "../catalog" }
 config = { path = "../config" }
+key-manager = { path = "../key-manager" }
+key-store = { path = "../key-store" }
 server-agent-api = { path = "../../common/server-agent-api" }
 
 http-common = { git = "https://github.com/Azure/iot-identity-service" }
+
 
 [features]
 tests = []

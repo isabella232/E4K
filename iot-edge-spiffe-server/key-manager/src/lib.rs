@@ -12,7 +12,7 @@
 
 mod error;
 
-use catalog::TrustBundleStore;
+use catalog::{Entries, TrustBundleStore};
 use common::{get_epoch_time, KeyType};
 use config::Config;
 use error::Error;
@@ -46,29 +46,29 @@ struct Slots {
     next_jwt_key: Option<JWTKeyEntry>,
 }
 
-pub struct Manager<C, D>
+pub struct KeyManager<C, D>
 where
-    C: KeyStore + Send + Sync,
-    D: TrustBundleStore + Send + Sync + 'static,
+    C: TrustBundleStore + Entries + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
 {
     trust_domain: String,
-    catalog: Arc<D>,
-    key_store: Arc<C>,
+    catalog: Arc<C>,
+    key_store: Arc<D>,
     jwt_key_type: KeyType,
     jwt_key_ttl: u64,
 
     slots: RwLock<Slots>,
 }
 
-impl<C, D> Manager<C, D>
+impl<C, D> KeyManager<C, D>
 where
-    C: KeyStore + Send + Sync,
-    D: TrustBundleStore + Send + Sync + 'static,
+    C: TrustBundleStore + Entries + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
 {
     pub async fn new(
         config: &Config,
-        catalog: Arc<D>,
-        key_store: Arc<C>,
+        catalog: Arc<C>,
+        key_store: Arc<D>,
         current_time: u64,
     ) -> Result<Self, Error> {
         let id = Uuid::new_v4().to_string();
@@ -84,7 +84,7 @@ where
             next_jwt_key: None,
         };
 
-        let key_manager = Manager::<C, D> {
+        let key_manager = KeyManager::<C, D> {
             trust_domain: config.trust_domain.clone(),
             catalog,
             key_store,
@@ -100,6 +100,19 @@ where
 
     pub async fn start(&'static self) -> JoinHandle<()> {
         tokio::spawn(self.rotate_periodic())
+    }
+
+    pub async fn sign_jwt_with_current_key(
+        &self,
+        digest: &[u8],
+    ) -> Result<(usize, Vec<u8>), Error> {
+        let slots = &*self.slots.read().await;
+        let key_id = &slots.current_jwt_key.id;
+
+        self.key_store
+            .sign(key_id, self.jwt_key_type, digest)
+            .await
+            .map_err(|err| Error::SigningDigest(Box::new(err)))
     }
 
     async fn rotate_periodic(&self) {
@@ -201,61 +214,78 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{error::Error, KeyManager};
     use catalog::{inmemory, TrustBundleStore};
-    use config::{Config, KeyPluginConfigDisk};
+    use config::{Config, DiskPlugin, KeyStoreConfig};
     use key_store::{disk, KeyStore};
+    use matches::assert_matches;
     use std::sync::Arc;
     use tempdir::TempDir;
 
-    use crate::Manager;
-
-    async fn init() -> (
-        Manager<disk::KeyStore, inmemory::Catalog>,
-        Arc<inmemory::Catalog>,
-        Arc<disk::KeyStore>,
-    ) {
+    async fn init() -> KeyManager<inmemory::Catalog, disk::KeyStore> {
         let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyPluginConfigDisk {
+        let key_plugin = DiskPlugin {
             key_base_path: key_base_path.clone(),
         };
 
         // Change key disk plugin path to write in tempdir
-        config.key_plugin_disk = Some(key_plugin);
+        config.key_store_config = KeyStoreConfig::Disk(key_plugin.clone());
         // Force ttl to 300s
         config.jwt_key_ttl = 300;
 
         let catalog = Arc::new(inmemory::Catalog::new());
-        let key_store = Arc::new(disk::KeyStore::new(
-            &config.clone().key_plugin_disk.unwrap(),
-        ));
+        let key_store = Arc::new(disk::KeyStore::new(&key_plugin));
 
-        (
-            Manager::new(&config, catalog.clone(), key_store.clone(), 0)
-                .await
-                .unwrap(),
-            catalog,
-            key_store,
-        )
+        KeyManager::new(&config, catalog.clone(), key_store.clone(), 0)
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
     async fn initialize_test_happy_path() {
-        let (manager, catalog, key_store) = init().await;
+        let manager = init().await;
 
         // Check the public key has been uploaded
-        let res = catalog.get_jwt_keys("dummy").await.unwrap();
+        let res = manager.catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store
         let current_jwt_key = &manager.slots.write().await.current_jwt_key;
-        let _key = key_store.get_public_key(&current_jwt_key.id).await.unwrap();
+        let _key = manager
+            .key_store
+            .get_public_key(&current_jwt_key.id)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn sign_digest_happy_path() {
+        let manager = init().await;
+
+        let digest = "hello world".as_bytes();
+
+        manager.sign_jwt_with_current_key(digest).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn sign_digest_error_path() {
+        let manager = init().await;
+
+        let digest = "hello world".as_bytes();
+        let current_jwt_key = &manager.slots.read().await.current_jwt_key;
+
+        let id = current_jwt_key.clone().id;
+        manager.key_store.delete_key_pair(&id).await.unwrap();
+
+        let error = manager.sign_jwt_with_current_key(digest).await.unwrap_err();
+        assert_matches!(error, Error::SigningDigest(_));
     }
 
     #[tokio::test]
     async fn remove_jwt_key_from_catalog_and_store_test_happy_path() {
-        let (manager, catalog, key_store) = init().await;
+        let manager = init().await;
 
         let current_jwt_key = &manager.slots.write().await.current_jwt_key;
         manager
@@ -264,11 +294,12 @@ mod tests {
             .unwrap();
 
         // Check it was removed from catalog
-        let res = catalog.get_jwt_keys("dummy").await.unwrap();
+        let res = manager.catalog.get_jwt_keys("dummy").await.unwrap();
         assert_eq!(res.len(), 0);
 
         // Check private key is in not the store
-        let error = key_store
+        let error = manager
+            .key_store
             .get_public_key(&current_jwt_key.id)
             .await
             .unwrap_err();
@@ -280,7 +311,7 @@ mod tests {
 
     #[tokio::test]
     async fn rotate_periodic_test_state_machine() {
-        let (manager, catalog, key_store) = init().await;
+        let manager = init().await;
 
         // We test 3 events
         // 1. Next key create when current time > ttl/2
@@ -289,17 +320,23 @@ mod tests {
 
         //------------------------ Stage 1 ----------------------------
         let (current_jwt_key_id, next_jwt_key_id) =
-            run_stage1(&manager, catalog.clone(), key_store.clone()).await;
+            run_stage1(&manager, manager.catalog.clone(), manager.key_store.clone()).await;
 
         //------------------------ Stage 2 ----------------------------
         run_stage2(&manager, &current_jwt_key_id, &next_jwt_key_id).await;
 
         //------------------------ Stage 3 ----------------------------
-        run_stage3(&manager, catalog, key_store, &current_jwt_key_id).await;
+        run_stage3(
+            &manager,
+            manager.catalog.clone(),
+            manager.key_store.clone(),
+            &current_jwt_key_id,
+        )
+        .await;
     }
 
     async fn run_stage1(
-        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        manager: &KeyManager<inmemory::Catalog, disk::KeyStore>,
         catalog: Arc<inmemory::Catalog>,
         key_store: Arc<disk::KeyStore>,
     ) -> (String, String) {
@@ -329,7 +366,7 @@ mod tests {
     }
 
     async fn run_stage2(
-        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        manager: &KeyManager<inmemory::Catalog, disk::KeyStore>,
         current_jwt_key_id: &str,
         next_jwt_key_id: &str,
     ) {
@@ -354,7 +391,7 @@ mod tests {
     }
 
     async fn run_stage3(
-        manager: &Manager<disk::KeyStore, inmemory::Catalog>,
+        manager: &KeyManager<inmemory::Catalog, disk::KeyStore>,
         catalog: Arc<inmemory::Catalog>,
         key_store: Arc<disk::KeyStore>,
         current_jwt_key_id: &str,

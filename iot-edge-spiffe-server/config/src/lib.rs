@@ -19,11 +19,17 @@ pub struct Config {
     pub trust_domain: String,
     pub jwt_key_type: KeyType,
     pub jwt_key_ttl: u64,
-    pub key_plugin_disk: Option<KeyPluginConfigDisk>,
+    pub key_store_config: KeyStoreConfig,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct KeyPluginConfigDisk {
+#[serde(tag = "type", content = "args")]
+pub enum KeyStoreConfig {
+    Disk(DiskPlugin),
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct DiskPlugin {
     pub key_base_path: String,
 }
 

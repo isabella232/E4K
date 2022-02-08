@@ -15,7 +15,7 @@ use config::Config;
 use error::Error;
 use http_common::Connector;
 use server_admin_api::{
-    create_registration_entries, delete_registration_entries, list_registration_entries, operation,
+    create_registration_entries, delete_registration_entries, list_all, operation,
     select_get_registration_entries, update_registration_entries,
 };
 use std::{io, path::Path, sync::Arc};
@@ -88,7 +88,7 @@ where
 
             let result = self
                 .catalog
-                .create_registration_entry(reg_entry)
+                .create(reg_entry)
                 .await
                 .map(|_| id.clone())
                 .map_err(|err| operation::Error {
@@ -113,7 +113,7 @@ where
 
             let result = self
                 .catalog
-                .update_registration_entry(reg_entry)
+                .update(reg_entry)
                 .await
                 .map(|_| id.clone())
                 .map_err(|err| operation::Error::from(Error::UpdateEntry(Box::new(err), id)));
@@ -133,7 +133,7 @@ where
         for id in req.ids {
             let result = self
                 .catalog
-                .get_registration_entry(&id)
+                .get(&id)
                 .await
                 .map_err(|err| operation::Error::from(Error::GetEntry(Box::new(err), id)));
 
@@ -143,10 +143,7 @@ where
         select_get_registration_entries::Response { results }
     }
 
-    pub async fn list_registration_entries(
-        &self,
-        params: list_registration_entries::Params,
-    ) -> Result<list_registration_entries::Response, Error> {
+    pub async fn list_all(&self, params: list_all::Params) -> Result<list_all::Response, Error> {
         let page_size: usize = params
             .page_size
             .try_into()
@@ -154,11 +151,11 @@ where
 
         let (entries, next_page_token) = self
             .catalog
-            .list_registration_entries(params.page_token, page_size)
+            .list_all(params.page_token, page_size)
             .await
             .map_err(|err| Error::ListEntry(Box::new(err)))?;
 
-        let response = list_registration_entries::Response {
+        let response = list_all::Response {
             entries,
             next_page_token,
         };
@@ -175,7 +172,7 @@ where
         for id in req.ids {
             let result = self
                 .catalog
-                .delete_registration_entry(&id)
+                .delete(&id)
                 .await
                 .map(|_| id.clone())
                 .map_err(|err| operation::Error::from(Error::DeleteEntry(Box::new(err), id)));
@@ -343,34 +340,34 @@ mod tests {
         };
         let _res = api.create_registration_entries(req).await;
 
-        let req = list_registration_entries::Params {
+        let req = list_all::Params {
             page_size: 1,
             page_token: None,
         };
 
-        let res = api.list_registration_entries(req).await.unwrap();
+        let res = api.list_all(req).await.unwrap();
         if res.entries[0].id != "id" {
             panic!("Invalid entry");
         }
         assert_eq!(res.entries.len(), 1);
         assert_eq!(res.next_page_token, Some("id2".to_string()));
 
-        let req = list_registration_entries::Params {
+        let req = list_all::Params {
             page_size: 1,
             page_token: Some("id2".to_string()),
         };
-        let res = api.list_registration_entries(req).await.unwrap();
+        let res = api.list_all(req).await.unwrap();
         if res.entries[0].id != "id2" {
             panic!("Invalid entry");
         }
         assert_eq!(res.entries.len(), 1);
         assert_eq!(res.next_page_token, None);
 
-        let req = list_registration_entries::Params {
+        let req = list_all::Params {
             page_size: 1,
             page_token: Some("j".to_string()),
         };
-        let res = api.list_registration_entries(req).await.unwrap();
+        let res = api.list_all(req).await.unwrap();
         assert_eq!(res.entries.len(), 0);
         assert_eq!(res.next_page_token, None);
     }
@@ -398,11 +395,11 @@ mod tests {
         };
         let _res = api.create_registration_entries(req).await;
 
-        let req = list_registration_entries::Params {
+        let req = list_all::Params {
             page_size: 0,
             page_token: None,
         };
-        let _res = api.list_registration_entries(req).await.unwrap_err();
+        let _res = api.list_all(req).await.unwrap_err();
     }
 
     #[tokio::test]

@@ -3,5 +3,7 @@ trust_domain = "iotedge"
 jwt_key_type = "ECP256"
 jwt_key_ttl = 300
 
-[key-plugin-disk]
+[key_store_config]
+type = "Disk"
+[key_store_config.args]
 key_base_path = "."

@@ -10,7 +10,7 @@ use catalog::Entries;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use server_admin_api::{
-    create_registration_entries, delete_registration_entries, list_registration_entries,
+    create_registration_entries, delete_registration_entries, list_all,
     update_registration_entries, ApiVersion,
 };
 
@@ -85,12 +85,12 @@ where
                 message: "Could not convert page size to u32".into(),
             })?;
 
-        let params = list_registration_entries::Params {
+        let params = list_all::Params {
             page_size,
             page_token: self.page_token,
         };
 
-        let res = self.api.list_registration_entries(params).await;
+        let res = self.api.list_all(params).await;
         let res = match res {
             Ok(res) => res,
             Err(err) => {

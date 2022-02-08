@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use common::KeyType;
-use config::KeyPluginConfigDisk;
+use config::DiskPlugin;
 use openssl::{
     ec, nid,
     pkey::{self, PKey, Public},
@@ -28,7 +28,7 @@ pub struct KeyStore {
 
 impl KeyStore {
     #[must_use]
-    pub fn new(config: &KeyPluginConfigDisk) -> Self {
+    pub fn new(config: &DiskPlugin) -> Self {
         let key_base_path = Path::new(&config.key_base_path).to_path_buf();
         KeyStore { key_base_path }
     }
@@ -192,7 +192,7 @@ mod tests {
     fn init() -> (String, KeyStore) {
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let config = KeyPluginConfigDisk {
+        let config = DiskPlugin {
             key_base_path: key_base_path.clone(),
         };
         (key_base_path, KeyStore::new(&config))
