@@ -83,18 +83,12 @@ where
     ) -> create_registration_entries::Response {
         let mut results = Vec::new();
 
-        for reg_entry in req.entries {
-            let id = reg_entry.id.clone();
+        let catalog_results = self.catalog.batch_create(req.entries).await;
 
-            let result = self
-                .catalog
-                .create(reg_entry)
-                .await
+        for (id, result) in catalog_results {
+            let result = result
                 .map(|_| id.clone())
-                .map_err(|err| operation::Error {
-                    id,
-                    error: format!("Error while creating entry: {}", err),
-                });
+                .map_err(|err| operation::Error::from(Error::CreateEntry(Box::new(err), id)));
 
             results.push(result);
         }
@@ -108,13 +102,10 @@ where
     ) -> update_registration_entries::Response {
         let mut results = Vec::new();
 
-        for reg_entry in req.entries {
-            let id = reg_entry.id.clone();
+        let catalog_results = self.catalog.batch_update(req.entries).await;
 
-            let result = self
-                .catalog
-                .update(reg_entry)
-                .await
+        for (id, result) in catalog_results {
+            let result = result
                 .map(|_| id.clone())
                 .map_err(|err| operation::Error::from(Error::UpdateEntry(Box::new(err), id)));
 
@@ -130,12 +121,11 @@ where
     ) -> select_get_registration_entries::Response {
         let mut results = Vec::new();
 
-        for id in req.ids {
-            let result = self
-                .catalog
-                .get(&id)
-                .await
-                .map_err(|err| operation::Error::from(Error::GetEntry(Box::new(err), id)));
+        let catalog_results = self.catalog.batch_get(&req.ids).await;
+
+        for (id, result) in catalog_results {
+            let result =
+                result.map_err(|err| operation::Error::from(Error::GetEntry(Box::new(err), id)));
 
             results.push(result);
         }
@@ -169,11 +159,10 @@ where
     ) -> delete_registration_entries::Response {
         let mut results = Vec::new();
 
-        for id in req.ids {
-            let result = self
-                .catalog
-                .delete(&id)
-                .await
+        let catalog_results = self.catalog.batch_delete(&req.ids).await;
+
+        for (id, result) in catalog_results {
+            let result = result
                 .map(|_| id.clone())
                 .map_err(|err| operation::Error::from(Error::DeleteEntry(Box::new(err), id)));
 

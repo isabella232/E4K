@@ -20,17 +20,20 @@ pub mod inmemory;
 #[async_trait::async_trait]
 pub trait Entries: Sync + Send {
     /// Entry error.
-    type Error: std::error::Error + 'static;
+    type Error: std::error::Error + Send + 'static;
 
     /// Get a registration entry
     ///
     /// ## Arguments
-    /// * `id` - id of the entry.
+    /// * `ids` - ids of the entries.
     ///
     /// ## Returns
     /// * `Ok(RegistrationEntry)` - Successfully fetched the entry for the corresponding Id
     /// * `Err(e)` - an error occurred while getting the entry
-    async fn get(&self, id: &str) -> Result<RegistrationEntry, Self::Error>;
+    async fn batch_get(
+        &self,
+        ids: &[String],
+    ) -> Vec<(String, Result<RegistrationEntry, Self::Error>)>;
 
     /// Create a registration entry
     ///
@@ -40,7 +43,10 @@ pub trait Entries: Sync + Send {
     /// ## Returns
     /// * `Ok(())` - Successfully created the entry
     /// * `Err(e)` - an error occurred while creating the entry  
-    async fn create(&self, entry: RegistrationEntry) -> Result<(), Self::Error>;
+    async fn batch_create(
+        &self,
+        entries: Vec<RegistrationEntry>,
+    ) -> Vec<(String, Result<(), Self::Error>)>;
 
     /// Update a registration entry
     ///
@@ -50,7 +56,10 @@ pub trait Entries: Sync + Send {
     /// ## Returns
     /// * `Ok(())` - Successfully updated the entry
     /// * `Err(e)` - an error occurred while updating the entry     
-    async fn update(&self, entry: RegistrationEntry) -> Result<(), Self::Error>;
+    async fn batch_update(
+        &self,
+        entries: Vec<RegistrationEntry>,
+    ) -> Vec<(String, Result<(), Self::Error>)>;
 
     /// delete a registration entry
     ///
@@ -60,7 +69,7 @@ pub trait Entries: Sync + Send {
     /// ## Returns
     /// * `Ok(())` - Successfully deleted the entry
     /// * `Err(e)` - an error occurred while deleting the entry  
-    async fn delete(&self, id: &str) -> Result<(), Self::Error>;
+    async fn batch_delete(&self, ids: &[String]) -> Vec<(String, Result<(), Self::Error>)>;
 
     /// List all resgitration entries
     ///

@@ -76,7 +76,7 @@ where
     D: KeyStore + Send + Sync + 'static,
 {
     pub async fn create_new_jwt(&self, req: create_new_jwt::Request) -> create_new_jwt::Response {
-        let _entry = self.catalog.get(&req.id).await.unwrap();
+        let _catalog_results = self.catalog.batch_get(&[req.id].to_vec()).await;
 
         let digest = "hello world".as_bytes();
         self.key_manager
