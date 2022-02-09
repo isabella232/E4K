@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
+ "config",
  "futures-util",
  "http",
  "http-common",
@@ -16,7 +17,6 @@ dependencies = [
  "serde",
  "serde_json",
  "server-admin-api",
- "server-config",
  "thiserror",
  "tokio",
  "url",
@@ -60,6 +60,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "aziot-keys-common"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "pkcs11",
+ "url",
+]
+
+[[package]]
 name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,9 +100,13 @@ name = "catalog"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "config",
  "futures-util",
+ "matches",
+ "openssl",
+ "parking_lot 0.12.0",
  "server-admin-api",
- "server-config",
+ "server-agent-api",
  "thiserror",
  "tokio",
 ]
@@ -109,6 +122,22 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "config"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "serde",
+ "toml",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -171,6 +200,12 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
+
+[[package]]
+name = "fuchsia-cprng"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
 
 [[package]]
 name = "futures"
@@ -269,6 +304,17 @@ checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
 dependencies = [
  "typenum",
  "version_check",
+]
+
+[[package]]
+name = "getrandom"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "418d37c8b1d42553c93648be529cb70f920d3baf8ef469b74b9638df426e0b4c"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi",
 ]
 
 [[package]]
@@ -432,7 +478,7 @@ dependencies = [
  "once_cell",
  "openssl",
  "openssl-sys",
- "parking_lot",
+ "parking_lot 0.11.2",
  "tokio",
  "tokio-openssl",
  "tower-layer",
@@ -496,6 +542,44 @@ name = "itoa"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aab8fc367588b89dcee83ab0fd66b72b50b72fa1904d7095045ace2b0c81c35"
+
+[[package]]
+name = "key-manager"
+version = "0.1.0"
+dependencies = [
+ "catalog",
+ "common",
+ "config",
+ "key-store",
+ "log",
+ "matches",
+ "tempdir",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "key-store"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "aziot-keys-common",
+ "common",
+ "config",
+ "foreign-types-shared",
+ "log",
+ "logger",
+ "matches",
+ "openssl",
+ "openssl-sys",
+ "openssl-sys2",
+ "openssl2",
+ "tempdir",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "lazy_static"
@@ -659,6 +743,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-build"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -672,6 +764,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-sys2"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "openssl-build",
+ "openssl-sys",
+]
+
+[[package]]
+name = "openssl2"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "foreign-types",
+ "foreign-types-shared",
+ "openssl",
+ "openssl-build",
+ "openssl-sys",
+ "openssl-sys2",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -679,7 +793,17 @@ checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
 dependencies = [
  "instant",
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.8.5",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87f5ec2493a61ac0506c0f4199f99070cbe83857b0337006a30f3e6719b8ef58"
+dependencies = [
+ "lock_api",
+ "parking_lot_core 0.9.1",
 ]
 
 [[package]]
@@ -694,6 +818,19 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "winapi",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28141e0cc4143da2443301914478dc976a61ffdb3f043058310c70df2fed8954"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "windows-sys",
 ]
 
 [[package]]
@@ -713,6 +850,28 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pkcs11"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
+dependencies = [
+ "foreign-types-shared",
+ "lazy_static",
+ "libc",
+ "openssl",
+ "openssl-build",
+ "openssl-sys",
+ "openssl-sys2",
+ "openssl2",
+ "percent-encoding",
+ "pkcs11-sys",
+]
+
+[[package]]
+name = "pkcs11-sys"
+version = "0.1.0"
+source = "git+https://github.com/Azure/iot-identity-service#448934ec6129334c69bd09da6c7473ca3d50cdfe"
 
 [[package]]
 name = "pkg-config"
@@ -736,6 +895,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "864d3e96a899863136fc6e99f3d7cae289dafe43bf2c5ac19b70df7210c0a145"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rand"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "552840b97013b1a26992c11eac34bdd778e464601a4c2054b5f0bff7c6761293"
+dependencies = [
+ "fuchsia-cprng",
+ "libc",
+ "rand_core 0.3.1",
+ "rdrand",
+ "winapi",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a6fdeb83b075e8266dcc8762c22776f6877a63111121f5f8c7411e5be7eed4b"
+dependencies = [
+ "rand_core 0.4.2",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc"
+
+[[package]]
+name = "rdrand"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
+dependencies = [
+ "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -763,6 +959,15 @@ name = "regex-syntax"
 version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+
+[[package]]
+name = "remove_dir_all"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "ryu"
@@ -829,26 +1034,20 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
+ "config",
  "futures-util",
  "http",
  "http-common",
  "hyper",
+ "key-manager",
+ "key-store",
  "log",
  "serde",
  "serde_json",
  "server-agent-api",
- "server-config",
  "thiserror",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "server-config"
-version = "0.1.0"
-dependencies = [
- "serde",
- "toml",
 ]
 
 [[package]]
@@ -857,11 +1056,13 @@ version = "0.1.0"
 dependencies = [
  "admin-api",
  "catalog",
+ "config",
  "futures-util",
+ "key-manager",
+ "key-store",
  "log",
  "logger",
  "server-api",
- "server-config",
  "thiserror",
  "tokio",
 ]
@@ -910,6 +1111,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "tempdir"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15f2b5fb00ccdf689e0149d1b1b3c03fead81c2b37735d812fa8bddbbf41b6d8"
+dependencies = [
+ "rand",
+ "remove_dir_all",
 ]
 
 [[package]]
@@ -1110,6 +1321,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1130,6 +1350,12 @@ dependencies = [
  "log",
  "try-lock",
 ]
+
+[[package]]
+name = "wasi"
+version = "0.10.2+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
 
 [[package]]
 name = "winapi"
@@ -1161,3 +1387,46 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows-sys"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df6e476185f92a12c072be4a189a0210dcdcf512a1891d6dff9edb874deadc6"
+dependencies = [
+ "windows_aarch64_msvc",
+ "windows_i686_gnu",
+ "windows_i686_msvc",
+ "windows_x86_64_gnu",
+ "windows_x86_64_msvc",
+]
+
+[[package]]
+name = "windows_aarch64_msvc"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8e92753b1c443191654ec532f14c199742964a061be25d77d7a96f09db20bf5"
+
+[[package]]
+name = "windows_i686_gnu"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a711c68811799e017b6038e0922cb27a5e2f43a2ddb609fe0b6f3eeda9de615"
+
+[[package]]
+name = "windows_i686_msvc"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "146c11bb1a02615db74680b32a68e2d61f553cc24c4eb5b4ca10311740e44172"
+
+[[package]]
+name = "windows_x86_64_gnu"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c912b12f7454c6620635bbff3450962753834be2a594819bd5e945af18ec64bc"
+
+[[package]]
+name = "windows_x86_64_msvc"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "504a2476202769977a040c6364301a3f65d0cc9e3fb08600b2bda150a0488316"

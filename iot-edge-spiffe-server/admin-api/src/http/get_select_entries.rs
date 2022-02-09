@@ -1,20 +1,23 @@
 // Copyright (c) Microsoft. All rights reserved.
 use crate::{uri, Api};
-use catalog::Catalog;
+use catalog::Entries;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
 use server_admin_api::{select_get_registration_entries, ApiVersion};
 use std::borrow::Cow;
 
-pub(super) struct Route<C: Catalog + Send + Sync> {
+pub(super) struct Route<C>
+where
+    C: Entries + Send + Sync + 'static,
+{
     api: Api<C>,
 }
 
 #[async_trait::async_trait]
 impl<C> server::Route for Route<C>
 where
-    C: Catalog + Send + Sync,
+    C: Entries + Send + Sync + 'static,
 {
     type ApiVersion = ApiVersion;
     type Service = super::Service<C>;

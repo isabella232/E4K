@@ -1,9 +1,12 @@
 [workspace]
 members = [
 	"serverd",
-	"server-config",
+	"common",
+	"config",
 	"admin-api",
 	"server-api",
+	"key-store",
+	"key-manager",
 	"catalog",
 ]
 

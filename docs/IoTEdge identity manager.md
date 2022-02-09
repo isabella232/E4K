@@ -8,7 +8,7 @@ It makes sure that the catalog is in sync with the IoTEdge SPIFFE Server.
 
 _Figure : Identity manager_
 
-<img src="drawings/IoTEdge Identity Manager.png"/>
+<img src="drawings/IoTEdge_Identity_manager.svg"/>
 
 ## Blocks
 - (1) Identity Manager Core: The identity manager role is to create the SPIFFE identities the user desire in the SPIFFE server.

@@ -10,19 +10,33 @@
     clippy::too_many_lines
 )]
 
+use catalog::{Entries, TrustBundleStore};
+use config::Config;
 use error::Error;
 use http_common::Connector;
+use key_manager::KeyManager;
+use key_store::KeyStore;
 use server_agent_api::{create_new_jwt, get_trust_bundle, Bundle, JWTSVID, SPIFFEID};
-use server_config::Config;
-use std::io;
+use std::{io, sync::Arc};
 
 mod error;
 mod http;
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
-pub async fn start_server_api(config: &Config) -> Result<(), io::Error> {
-    let api = Api {};
+pub async fn start_server_api<C, D>(
+    config: &Config,
+    catalog: Arc<C>,
+    key_manager: Arc<KeyManager<C, D>>,
+) -> Result<(), io::Error>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
+    let api = Api::<C, D> {
+        catalog,
+        key_manager,
+    };
 
     let service = http::Service { api };
 
@@ -47,11 +61,29 @@ pub mod uri {
     pub const GET_TRUST_BUNDLE: &str = "/trust-bundle";
 }
 
-#[derive(Clone)]
-struct Api {}
+struct Api<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
+    catalog: Arc<C>,
+    key_manager: Arc<KeyManager<C, D>>,
+}
 
-impl Api {
-    pub async fn create_new_jwt(&self, _req: create_new_jwt::Request) -> create_new_jwt::Response {
+impl<C, D> Api<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
+    pub async fn create_new_jwt(&self, req: create_new_jwt::Request) -> create_new_jwt::Response {
+        let _catalog_results = self.catalog.batch_get(&[req.id].to_vec()).await;
+
+        let digest = "hello world".as_bytes();
+        self.key_manager
+            .sign_jwt_with_current_key(digest)
+            .await
+            .unwrap();
+
         let _dummy = Error::DummyError("test".to_string());
 
         // Create dummy response
@@ -81,6 +113,19 @@ impl Api {
                 refresh_hint: 0,
                 sequence_number: 0,
             },
+        }
+    }
+}
+
+impl<C, D> Clone for Api<C, D>
+where
+    C: Entries + TrustBundleStore + Send + Sync + 'static,
+    D: KeyStore + Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            catalog: self.catalog.clone(),
+            key_manager: self.key_manager.clone(),
         }
     }
 }

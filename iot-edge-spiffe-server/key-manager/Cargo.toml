@@ -1,0 +1,26 @@
+[package]
+name = "key-manager"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+log = "0.4"
+thiserror = "1.0"
+tokio = { version = "1", features = ["time", "macros", "rt-multi-thread", "sync","fs"] }
+uuid = { version = "0.8", features = ["v4"] }
+
+catalog = { path = "../catalog" }
+config = { path = "../config" }
+common = { path = "../common" }
+key-store = { path = "../key-store" }
+
+[dev-dependencies]
+matches = "0.1.9"
+tempdir = "0.3.7"
+
+common = { path = "../common", features = ["tests"] }
+
+[features]
+tests = []

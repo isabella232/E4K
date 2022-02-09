@@ -20,7 +20,7 @@ pub enum ApiVersion {
 impl fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            ApiVersion::V2022_06_01 => "2020-09-01",
+            ApiVersion::V2022_06_01 => "2022-06-01",
         })
     }
 }
@@ -30,7 +30,7 @@ impl str::FromStr for ApiVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "2020-09-01" => Ok(ApiVersion::V2022_06_01),
+            "2022-06-01" => Ok(ApiVersion::V2022_06_01),
             _ => Err(()),
         }
     }
@@ -64,7 +64,7 @@ pub mod update_registration_entries {
     }
 }
 
-pub mod list_registration_entries {
+pub mod list_all {
     use crate::RegistrationEntry;
 
     pub struct Params {

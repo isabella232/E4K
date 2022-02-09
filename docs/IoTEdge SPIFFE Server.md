@@ -8,7 +8,7 @@ The IoTEdge SPIFFE Server is responsible for:
 
 _Figure : IoTEdge SPIFFE Server_
 
-<img src="drawings/IoTEdge SPIFFE Server.png"/>
+<img src="drawings/IoTEdge_SPIFFE_server.svg"/>
 
 “Admin inputs” are the configuration parameters from the “Identity Manager”. “Admin inputs” are a mix of:
 -	 The configuration parameters like which plugin to use, configuration for the server API and more.
