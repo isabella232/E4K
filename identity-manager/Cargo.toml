@@ -1,0 +1,26 @@
+[package]
+edition = "2021"
+name = "identity-manager"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1"
+hyper = "0.14"
+percent-encoding = "2"
+serde = {version = "1", features = ["derive"]}
+serde_json = "1.0"
+toml = "0.5.8"
+url = "2"
+
+server-admin-api = {path = "../common/server-admin-api"}
+
+http-common = {git = "https://github.com/Azure/iot-identity-service", branch = "main"}
+
+[dev-dependencies]
+admin-api = {path = "../iot-edge-spiffe-server/admin-api"}
+catalog = {path = "../iot-edge-spiffe-server/catalog"}
+server-config = {path = "../iot-edge-spiffe-server/server-config"}
+tempfile = "3.2"
+tokio = {version = "1", features = ["full"]}

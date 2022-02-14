@@ -52,17 +52,11 @@ where
         let mut page_token: Option<String> = None;
 
         for q in query.iter() {
-            page_size = if q.0 == "page_size" {
-                Some(q.1.to_string())
-            } else {
-                None
-            };
-
-            page_token = if q.0 == "page_token" {
-                Some(q.1.to_string())
-            } else {
-                None
-            };
+            match &q.0 as &str {
+                "page_size" => page_size = Some(q.1.to_string()),
+                "page_token" => page_token = Some(q.1.to_string()),
+                _ => {}
+            }
         }
 
         Some(Route {
@@ -77,7 +71,7 @@ where
             .page_size
             .ok_or(server::Error {
                 status_code: StatusCode::BAD_REQUEST,
-                message: "Please provice the page size parameter".into(),
+                message: "Please provide the page size parameter".into(),
             })?
             .parse::<u32>()
             .map_err(|_| server::Error {
