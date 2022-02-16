@@ -9,6 +9,7 @@ dependencies = [
  "async-trait",
  "catalog",
  "config",
+ "core-objects",
  "futures-util",
  "http",
  "http-common",
@@ -101,12 +102,11 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "config",
+ "core-objects",
  "futures-util",
  "matches",
  "openssl",
  "parking_lot 0.12.0",
- "server-admin-api",
- "server-agent-api",
  "thiserror",
  "tokio",
 ]
@@ -135,8 +135,17 @@ name = "config"
 version = "0.1.0"
 dependencies = [
  "common",
+ "core-objects",
  "serde",
  "toml",
+]
+
+[[package]]
+name = "core-objects"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -550,9 +559,9 @@ dependencies = [
  "catalog",
  "common",
  "config",
+ "core-objects",
  "key-store",
  "log",
- "matches",
  "tempdir",
  "thiserror",
  "tokio",
@@ -567,6 +576,7 @@ dependencies = [
  "aziot-keys-common",
  "common",
  "config",
+ "core-objects",
  "foreign-types-shared",
  "log",
  "logger",
@@ -1016,6 +1026,7 @@ dependencies = [
 name = "server-admin-api"
 version = "0.1.0"
 dependencies = [
+ "core-objects",
  "serde",
  "serde_json",
 ]
@@ -1024,6 +1035,7 @@ dependencies = [
 name = "server-agent-api"
 version = "0.1.0"
 dependencies = [
+ "core-objects",
  "serde",
  "serde_json",
 ]
@@ -1034,7 +1046,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
+ "common",
  "config",
+ "core-objects",
  "futures-util",
  "http",
  "http-common",
@@ -1042,11 +1056,15 @@ dependencies = [
  "key-manager",
  "key-store",
  "log",
+ "matches",
  "serde",
  "serde_json",
  "server-agent-api",
+ "svid-factory",
+ "tempdir",
  "thiserror",
  "tokio",
+ "trust-bundle-builder",
  "url",
 ]
 
@@ -1057,14 +1075,17 @@ dependencies = [
  "admin-api",
  "catalog",
  "config",
+ "core-objects",
  "futures-util",
  "key-manager",
  "key-store",
  "log",
  "logger",
  "server-api",
+ "svid-factory",
  "thiserror",
  "tokio",
+ "trust-bundle-builder",
 ]
 
 [[package]]
@@ -1100,6 +1121,24 @@ checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "svid-factory"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "catalog",
+ "common",
+ "config",
+ "core-objects",
+ "key-manager",
+ "key-store",
+ "matches",
+ "serde_json",
+ "tempdir",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1272,6 +1311,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f4ed65637b8390770814083d20756f87bfa2c21bf2f110babdc5438351746e4"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "trust-bundle-builder"
+version = "0.1.0"
+dependencies = [
+ "catalog",
+ "common",
+ "config",
+ "core-objects",
+ "key-manager",
+ "key-store",
+ "matches",
+ "tempdir",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

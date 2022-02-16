@@ -1,9 +1,22 @@
 socket_path = "api.sock"
 trust_domain = "iotedge"
-jwt_key_type = "ECP256"
-jwt_key_ttl = 300
 
-[key_store_config]
+[jwt]
+key_type = "ES256"
+key_ttl = 300
+ttl = 10
+
+[trust-bundle]
+refresh_hint = 1
+
+[key-store]
 type = "Disk"
-[key_store_config.args]
+[key-store.args]
 key_base_path = "."
+
+[catalog]
+type = "Memory"
+
+[server-agent-api]
+bind_address = "0.0.0.0"
+bind_port = 8443

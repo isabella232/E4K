@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use server_admin_api::RegistrationEntry;
+use core_objects::RegistrationEntry;
 
 use crate::Entries;
 
@@ -8,76 +8,80 @@ use super::{error::Error, Catalog};
 
 #[async_trait::async_trait]
 impl Entries for Catalog {
-    type Error = crate::inmemory::Error;
-
     async fn batch_create(
         &self,
         entries: Vec<RegistrationEntry>,
-    ) -> Vec<(String, Result<(), Self::Error>)> {
+    ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
         let mut entries_list = self.entries_list.lock();
-        let mut results = Vec::new();
+        let mut errors = Vec::new();
 
         for entry in entries {
-            let result = if entries_list.contains_key(&entry.id) {
-                (entry.id.clone(), Err(Error::DuplicatedEntry(entry.id)))
-            } else {
-                let id = entry.id.clone();
-                entries_list.insert(entry.id.clone(), entry);
-                (id, Ok(()))
-            };
+            if entries_list.contains_key(&entry.id) {
+                let error = (
+                    entry.id.clone(),
+                    Box::new(Error::DuplicatedEntry(entry.id)) as _,
+                );
 
-            results.push(result);
+                errors.push(error);
+            } else {
+                entries_list.insert(entry.id.clone(), entry);
+            };
         }
 
-        results
+        errors.is_empty().then(|| ()).ok_or(errors)
     }
 
     async fn batch_update(
         &self,
         entries: Vec<RegistrationEntry>,
-    ) -> Vec<(String, Result<(), Self::Error>)> {
+    ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
         let mut entries_list = self.entries_list.lock();
-        let mut results = Vec::new();
+        let mut errors = Vec::new();
 
         for entry in entries {
-            let result = if let Some(entry_ptr) = entries_list.get_mut(&entry.id) {
-                let id = entry.id.clone();
+            if let Some(entry_ptr) = entries_list.get_mut(&entry.id) {
                 *entry_ptr = entry;
-                (id, Ok(()))
             } else {
-                (
+                let error = (
                     entry.id.clone(),
-                    Err(Error::EntryNotFound(entry.id.clone())),
-                )
-            };
+                    Box::new(Error::EntryNotFound(entry.id.clone())) as _,
+                );
 
-            results.push(result);
+                errors.push(error);
+            };
         }
 
-        results
+        errors.is_empty().then(|| ()).ok_or(errors)
     }
 
-    async fn batch_delete(&self, ids: &[String]) -> Vec<(String, Result<(), Self::Error>)> {
+    async fn batch_delete(
+        &self,
+        ids: &[String],
+    ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
         let mut entries_list = self.entries_list.lock();
-        let mut results = Vec::new();
+        let mut errors = Vec::new();
 
         for id in ids {
-            let result = if entries_list.remove(id).is_some() {
-                (id.clone(), Ok(()))
-            } else {
-                (id.clone(), Err(Error::EntryNotFound(id.to_string())))
-            };
+            if entries_list.remove(id).is_none() {
+                let error = (
+                    id.clone(),
+                    Box::new(Error::EntryNotFound(id.to_string())) as _,
+                );
 
-            results.push(result);
+                errors.push(error);
+            };
         }
 
-        results
+        errors.is_empty().then(|| ()).ok_or(errors)
     }
 
     async fn batch_get(
         &self,
         ids: &[String],
-    ) -> Vec<(String, Result<RegistrationEntry, Self::Error>)> {
+    ) -> Vec<(
+        String,
+        Result<RegistrationEntry, Box<dyn std::error::Error + Send>>,
+    )> {
         let entries_list = self.entries_list.lock();
         let mut results = Vec::new();
 
@@ -87,7 +91,10 @@ impl Entries for Catalog {
             let result = if let Some(entry) = entry {
                 (id.clone(), Ok(entry.clone()))
             } else {
-                (id.clone(), Err(Error::EntryNotFound(id.to_string())))
+                (
+                    id.clone(),
+                    Err(Box::new(Error::EntryNotFound(id.to_string())) as _),
+                )
             };
 
             results.push(result);
@@ -100,14 +107,14 @@ impl Entries for Catalog {
         &self,
         page_token: Option<String>,
         page_size: usize,
-    ) -> Result<(Vec<RegistrationEntry>, Option<String>), Self::Error> {
+    ) -> Result<(Vec<RegistrationEntry>, Option<String>), Box<dyn std::error::Error + Send>> {
         let entries_list = self.entries_list.lock();
 
         let mut response: Vec<RegistrationEntry> = Vec::new();
         let mut entry_counter = 0;
 
         if page_size == 0 {
-            return Err(Error::InvalidPageSize());
+            return Err(Box::new(Error::InvalidPageSize()));
         }
 
         let mut iterator: Box<dyn Iterator<Item = (&String, &RegistrationEntry)>> =
@@ -134,17 +141,22 @@ impl Entries for Catalog {
 
 #[cfg(test)]
 mod tests {
-    use server_admin_api::RegistrationEntry;
 
+    use core_objects::SPIFFEID;
     use matches::assert_matches;
 
     use super::*;
 
     fn init_entry_test() -> (Catalog, RegistrationEntry, RegistrationEntry) {
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
+
         let entry1 = RegistrationEntry {
             id: String::from("id"),
             iot_hub_id: None,
-            spiffe_id: String::from("spiffe id"),
+            spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
             admin: false,
@@ -166,11 +178,7 @@ mod tests {
     async fn create_registration_entry_test_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
         let entries = [entry1, entry2].to_vec();
-        let results = catalog.batch_create(entries).await;
-
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_create(entries).await.unwrap();
     }
 
     #[tokio::test]
@@ -178,14 +186,14 @@ mod tests {
         let (catalog, entry1, entry2) = init_entry_test();
         let entries = [entry1.clone(), entry2.clone()].to_vec();
 
-        let results = catalog.batch_create(entries.clone()).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_create(entries.clone()).await.unwrap();
 
-        let results = catalog.batch_create(entries).await;
+        let results = catalog.batch_create(entries).await.unwrap_err();
+
         for (_id, result) in results {
-            assert_matches!(result.unwrap_err(), Error::DuplicatedEntry(_));
+            let result = *result.downcast::<Error>().unwrap();
+
+            assert_matches!(result, Error::DuplicatedEntry(_));
         }
     }
 
@@ -194,15 +202,9 @@ mod tests {
         let (catalog, entry1, entry2) = init_entry_test();
         let entries = [entry1, entry2].to_vec();
 
-        let results = catalog.batch_create(entries.clone()).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_create(entries.clone()).await.unwrap();
 
-        let results = catalog.batch_update(entries).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_update(entries).await.unwrap();
     }
 
     #[tokio::test]
@@ -210,9 +212,11 @@ mod tests {
         let (catalog, entry1, entry2) = init_entry_test();
         let entries = [entry1, entry2].to_vec();
 
-        let results = catalog.batch_update(entries).await;
+        let results = catalog.batch_update(entries).await.unwrap_err();
         for (_id, result) in results {
-            assert_matches!(result.unwrap_err(), Error::EntryNotFound(_));
+            let result = *result.downcast::<Error>().unwrap();
+
+            assert_matches!(result, Error::EntryNotFound(_));
         }
     }
 
@@ -222,15 +226,9 @@ mod tests {
         let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
         let entries = [entry1, entry2].to_vec();
 
-        let results = catalog.batch_create(entries.clone()).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_create(entries.clone()).await.unwrap();
 
-        let results = catalog.batch_delete(&ids).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_delete(&ids).await.unwrap();
     }
 
     #[tokio::test]
@@ -238,9 +236,11 @@ mod tests {
         let (catalog, entry1, entry2) = init_entry_test();
         let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
 
-        let results = catalog.batch_delete(&ids).await;
+        let results = catalog.batch_delete(&ids).await.unwrap_err();
         for (_id, result) in results {
-            assert_matches!(result.unwrap_err(), Error::EntryNotFound(_));
+            let result = *result.downcast::<Error>().unwrap();
+
+            assert_matches!(result, Error::EntryNotFound(_));
         }
     }
 
@@ -250,10 +250,7 @@ mod tests {
         let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
         let entries = [entry1, entry2].to_vec();
 
-        let results = catalog.batch_create(entries).await;
-        for (_id, result) in results {
-            result.unwrap();
-        }
+        catalog.batch_create(entries).await.unwrap();
 
         let results = catalog.batch_get(&ids).await;
         for (_id, result) in results {
@@ -268,7 +265,9 @@ mod tests {
 
         let results = catalog.batch_get(&ids).await;
         for (_id, result) in results {
-            assert_matches!(result.unwrap_err(), Error::EntryNotFound(_));
+            let result = *result.unwrap_err().downcast::<Error>().unwrap();
+
+            assert_matches!(result, Error::EntryNotFound(_));
         }
     }
 }

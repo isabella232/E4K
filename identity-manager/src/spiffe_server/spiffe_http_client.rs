@@ -1,7 +1,5 @@
-use std::path::Path;
-
+use core_objects::RegistrationEntry;
 use http_common::{ErrorBody, HttpRequest};
-use server_admin_api::RegistrationEntry;
 
 pub use super::SpiffeConnector;
 
@@ -30,10 +28,10 @@ impl SpiffeConnector for SpiffeHttpClient {
         let request: HttpRequest<(), _> = HttpRequest::get(self.connector.clone(), &uri);
 
         let response = request.json_response().await?;
-        let response: server_admin_api::list_registration_entries::Response =
+        let response: server_admin_api::list_all::Response =
             response.parse_expect_ok::<_, ErrorBody<'_>>()?;
 
-        let server_admin_api::list_registration_entries::Response {
+        let server_admin_api::list_all::Response {
             mut entries,
             mut next_page_token,
         } = response;
@@ -47,7 +45,7 @@ impl SpiffeConnector for SpiffeHttpClient {
             let request: HttpRequest<(), _> = HttpRequest::get(self.connector.clone(), &uri);
 
             let response = request.json_response().await?;
-            let mut response: server_admin_api::list_registration_entries::Response =
+            let mut response: server_admin_api::list_all::Response =
                 response.parse_expect_ok::<_, ErrorBody<'_>>()?;
 
             entries.append(&mut response.entries);
@@ -89,6 +87,7 @@ impl SpiffeConnector for SpiffeHttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core_objects::SPIFFEID;
     use std::sync::Arc;
     use tempfile::{tempdir, TempDir};
     use tokio::time::{sleep, Duration};
@@ -116,7 +115,10 @@ mod tests {
             .map(|id| RegistrationEntry {
                 id: id.to_owned(),
                 iot_hub_id: None,
-                spiffe_id: "spiffe_id".to_owned(),
+                spiffe_id: SPIFFEID {
+                    trust_domain: "trust_domain".to_owned(),
+                    path: "path".to_owned(),
+                },
                 parent_id: None,
                 selectors: Vec::new(),
                 admin: false,
@@ -171,7 +173,10 @@ mod tests {
             .map(|id| RegistrationEntry {
                 id: id.to_owned(),
                 iot_hub_id: None,
-                spiffe_id: "spiffe_id".to_owned(),
+                spiffe_id: SPIFFEID {
+                    trust_domain: "trust_domain".to_owned(),
+                    path: "path".to_owned(),
+                },
                 parent_id: None,
                 selectors: Vec::new(),
                 admin: false,
@@ -208,12 +213,15 @@ mod tests {
         let socket = tmp_dir.path().join("api.sock");
         let socket_string: String = socket.as_os_str().to_string_lossy().to_string();
 
+        let mut config =
+            config::Config::load_config("../iot-edge-spiffe-server/config/tests/Config.toml")
+                .unwrap();
+
         let server_socket_string = socket_string.clone(); // Need to clone to pass to new thread
         tokio::spawn(async move {
-            let config = server_config::Config {
-                socket_path: server_socket_string,
-            };
-            let catalog = Arc::new(catalog::inmemory::InMemoryCatalog::new());
+            config.socket_path = server_socket_string;
+
+            let catalog = Arc::new(catalog::inmemory::Catalog::new());
 
             admin_api::start_admin_api(&config, catalog).await.unwrap();
         });

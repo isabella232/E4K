@@ -1,23 +1,25 @@
 [package]
-name = "catalog"
+name = "trust-bundle-builder"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 license = "MIT"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1"
-futures-util = "0.3"
-parking_lot = "0.12.0"
 thiserror = "1.0.24"
 
+catalog = { path = "../catalog" }
 config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
 
 [dev-dependencies]
-openssl = "0.10"
 matches = "0.1.9"
+tempdir = "0.3.7"
 tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
+
+common = { path = "../common", features = ["tests"] }
+key-manager = { path = "../key-manager" }
+key-store = { path = "../key-store" }
 
 [features]
 tests = []

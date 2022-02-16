@@ -37,7 +37,9 @@ impl str::FromStr for ApiVersion {
 }
 
 pub mod create_registration_entries {
-    use crate::{operation, RegistrationEntry};
+    use core_objects::RegistrationEntry;
+
+    use crate::operation;
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
@@ -46,12 +48,14 @@ pub mod create_registration_entries {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub results: Vec<Result<String, operation::Error>>,
+        pub results: Result<(), Vec<operation::Error>>,
     }
 }
 
 pub mod update_registration_entries {
-    use crate::{operation, RegistrationEntry};
+    use core_objects::RegistrationEntry;
+
+    use crate::operation;
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
@@ -60,12 +64,12 @@ pub mod update_registration_entries {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub results: Vec<Result<String, operation::Error>>,
+        pub results: Result<(), Vec<operation::Error>>,
     }
 }
 
 pub mod list_all {
-    use crate::RegistrationEntry;
+    use core_objects::RegistrationEntry;
 
     pub struct Params {
         pub page_size: u32,
@@ -80,7 +84,9 @@ pub mod list_all {
 }
 
 pub mod select_get_registration_entries {
-    use crate::{operation, RegistrationEntry};
+    use core_objects::RegistrationEntry;
+
+    use crate::operation;
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
@@ -103,7 +109,7 @@ pub mod delete_registration_entries {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub results: Vec<Result<String, operation::Error>>,
+        pub results: Result<(), Vec<operation::Error>>,
     }
 }
 
@@ -113,26 +119,13 @@ pub mod operation {
         pub id: String,
         pub error: String,
     }
-}
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct RegistrationEntry {
-    pub id: String,
-    pub iot_hub_id: Option<IoTHubId>,
-    pub spiffe_id: String,
-    pub parent_id: Option<String>,
-    pub selectors: Vec<String>,
-    pub admin: bool,
-    pub ttl: u64,
-    pub expires_at: u64,
-    pub dns_names: Vec<String>,
-    pub revision_number: u64,
-    pub store_svid: bool,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct IoTHubId {
-    pub iot_hub_hostname: String,
-    pub device_id: String,
-    pub module_id: String,
+    impl From<(String, Box<dyn std::error::Error + Send>)> for Error {
+        fn from(error: (String, Box<dyn std::error::Error + Send>)) -> Self {
+            Self {
+                id: error.0,
+                error: error.1.to_string(),
+            }
+        }
+    }
 }

@@ -22,6 +22,26 @@ After attestation, the IoTEdge SPIFFE server delivers a JWTSVID to the agent for
 
 The background task represents background operations like regularly rotating the signing keys.
 
+# Testing the server
+Some dummy commands to test and run the server
+
+working directory: iot-edge-spiffe-server/serverd
+
+## Add entries into the server:
+curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"1\", \"iot_hub_id\" : {\"iot_hub_hostname\" : \"myhub\", \"device_id\": \"my_device\", \"module_id\": \"modid\"}, \"spiffe_id\" : {\"trust_domain\" : \"trust_domain\", \"path\" : \"path\"}, \"parent_id\" : \"ccc\", \"selectors\" : [\"cc\"], \"ttl\" : 0, \"admin\": true, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true }]}"
+
+## Check entries are entered:
+curl --unix-socket api.sock "http://localhost/entries?api-version=2022-06-01&page_size=10"
+
+## Get an SVID signed for that entry:
+curl --request POST "http://localhost:8443/new-JWT-SVID?api-version=2022-06-01"  --header "Content-Type: application/json"  -d "{\"id\" : \"1\", \"audiences\": [\"my audience\"]}" 
+
+## Get trust-bundle:
+curl "http://localhost:8443/trust-bundle?api-version=2022-06-01&jwt_keys=true"
+
+## Get Trust bundle to validate entries:
+
+
 # Admin APIs
 ---
 ## Get entries

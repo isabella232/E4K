@@ -14,6 +14,7 @@ serde_json = "1.0"
 toml = "0.5.8"
 url = "2"
 
+core-objects = {path = "../common/core-objects"}
 server-admin-api = {path = "../common/server-admin-api"}
 
 http-common = {git = "https://github.com/Azure/iot-identity-service", branch = "main"}
@@ -21,6 +22,6 @@ http-common = {git = "https://github.com/Azure/iot-identity-service", branch = "
 [dev-dependencies]
 admin-api = {path = "../iot-edge-spiffe-server/admin-api"}
 catalog = {path = "../iot-edge-spiffe-server/catalog"}
-server-config = {path = "../iot-edge-spiffe-server/server-config"}
+config = {path = "../iot-edge-spiffe-server/config"}
 tempfile = "3.2"
 tokio = {version = "1", features = ["full"]}

@@ -35,60 +35,30 @@ impl std::str::FromStr for ApiVersion {
 }
 
 pub mod create_new_jwt {
-    use crate::JWTSVID;
+    use core_objects::{JWTSVIDCompact, SPIFFEID};
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
         pub id: String,
-        pub audiences: Vec<String>,
+        pub audiences: Vec<SPIFFEID>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub jwt_svid: JWTSVID,
+        pub jwt_svid: JWTSVIDCompact,
     }
 }
 
 pub mod get_trust_bundle {
-    use crate::Bundle;
+    use core_objects::TrustBundle;
 
-    pub struct Params {
+    pub struct Request {
         pub jwt_keys: bool,
         pub x509_cas: bool,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub bundle: Bundle,
+        pub trust_bundle: TrustBundle,
     }
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct JWTSVID {
-    pub token: String,
-    pub spiffe_id: SPIFFEID,
-    pub expire_at: u64,
-    pub issued_at: u64,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct SPIFFEID {
-    pub trust_domain: String,
-    pub path: String,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct Bundle {
-    pub trust_domain: String,
-    pub jwt_keys: Vec<JWK>,
-    pub x509_cas: Vec<Vec<u8>>,
-    pub refresh_hint: u64,
-    pub sequence_number: u64,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct JWK {
-    pub public_key: Vec<u8>,
-    pub key_id: String,
-    pub expires_at: u64,
 }

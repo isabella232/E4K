@@ -72,15 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server-admin-api"
-version = "0.1.0"
-dependencies = [
- "core-objects",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "syn"
 version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,31 +1,21 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use catalog::{Entries, TrustBundleStore};
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
-use key_store::KeyStore;
 use serde::de::IgnoredAny;
 use server_agent_api::{create_new_jwt, ApiVersion};
 use std::borrow::Cow;
 
 use crate::{uri, Api};
 
-pub(super) struct Route<C, D>
-where
-    C: Entries + TrustBundleStore + Send + Sync + 'static,
-    D: KeyStore + Send + Sync + 'static,
-{
-    api: Api<C, D>,
+pub(super) struct Route {
+    api: Api,
 }
 
 #[async_trait::async_trait]
-impl<C, D> server::Route for Route<C, D>
-where
-    C: Entries + TrustBundleStore + Send + Sync + 'static,
-    D: KeyStore + Send + Sync + 'static,
-{
+impl server::Route for Route {
     type ApiVersion = ApiVersion;
-    type Service = super::Service<C, D>;
+    type Service = super::Service;
     type DeleteBody = IgnoredAny;
     type PostBody = create_new_jwt::Request;
     type PutBody = IgnoredAny;
@@ -55,6 +45,15 @@ where
         })?;
 
         let res = self.api.create_new_jwt(body).await;
+        let res = match res {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(server::Error {
+                    status_code: StatusCode::INTERNAL_SERVER_ERROR,
+                    message: format!("Error when creating new jwt: {}", err).into(),
+                })
+            }
+        };
 
         let res = server::response::json(StatusCode::CREATED, &res);
 

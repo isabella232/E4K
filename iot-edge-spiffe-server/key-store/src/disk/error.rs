@@ -2,6 +2,7 @@
 
 use std::{io, num::TryFromIntError};
 
+use core_objects::KeyType;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -24,6 +25,8 @@ pub enum Error {
     UnsupportedKeyPairType(),
     #[error("Unsupported Mechanism type")]
     UnsupportedMechanismType(),
+    #[error("Unimplemented KeyType {0:?}")]
+    UnimplementedKeyType(KeyType),
 }
 
 impl From<openssl::error::Error> for Error {

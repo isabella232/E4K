@@ -18,7 +18,10 @@ catalog = { path = "../catalog" }
 config = { path = "../config" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
+svid-factory = { path = "../svid-factory" }
+trust-bundle-builder = { path = "../trust-bundle-builder" }
 
+core-objects = { path = "../../common/core-objects" }
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 
 [features]

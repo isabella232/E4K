@@ -8,18 +8,21 @@ use std::{
     sync::Arc,
 };
 
-use openssl::pkey::{PKey, Public};
+use crate::Catalog as CatalogTrait;
+use core_objects::{RegistrationEntry, JWK};
 use parking_lot::{const_mutex, Mutex};
-use server_admin_api::RegistrationEntry;
-
-use self::error::Error;
 
 pub struct Catalog {
     entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
+    jwt_trust_domain: Arc<Mutex<JWTTrustDomain>>,
+}
+
+pub struct JWTTrustDomain {
+    version: usize,
     // Since this is in memory implementation, there is only one trust domain
     // The trust domain string will be ignored in the calls related to the trust domain key store
     // That one hashmap contains all the public keys for the only trust domain.
-    jwt_trust_domain_store: Arc<Mutex<HashMap<String, PKey<Public>>>>,
+    store: HashMap<String, JWK>,
 }
 
 impl Catalog {
@@ -27,7 +30,10 @@ impl Catalog {
     pub fn new() -> Self {
         Catalog {
             entries_list: Arc::new(const_mutex(BTreeMap::new())),
-            jwt_trust_domain_store: Arc::new(const_mutex(HashMap::new())),
+            jwt_trust_domain: Arc::new(const_mutex(JWTTrustDomain {
+                version: 0,
+                store: HashMap::new(),
+            })),
         }
     }
 }
@@ -37,3 +43,6 @@ impl Default for Catalog {
         Self::new()
     }
 }
+
+#[async_trait::async_trait]
+impl CatalogTrait for Catalog {}

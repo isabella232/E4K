@@ -1,4 +1,4 @@
-use server_admin_api::RegistrationEntry;
+use core_objects::RegistrationEntry;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 

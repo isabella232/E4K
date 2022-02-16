@@ -10,7 +10,7 @@
     clippy::too_many_lines
 )]
 
-use catalog::Entries;
+use catalog::Catalog;
 use config::Config;
 use error::Error;
 use http_common::Connector;
@@ -19,16 +19,17 @@ use server_admin_api::{
     select_get_registration_entries, update_registration_entries,
 };
 use std::{io, path::Path, sync::Arc};
+use tokio::task::JoinHandle;
 
 mod error;
 mod http;
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
-pub async fn start_admin_api<C>(config: &Config, catalog: Arc<C>) -> Result<(), io::Error>
-where
-    C: Entries + Send + Sync + 'static,
-{
+pub async fn start_admin_api(
+    config: &Config,
+    catalog: Arc<dyn Catalog + Sync + Send>,
+) -> Result<JoinHandle<Result<(), std::io::Error>>, io::Error> {
     let api = Api { catalog };
 
     let service = http::Service { api: api.clone() };
@@ -39,14 +40,20 @@ where
 
     let mut incoming = connector.incoming(SOCKET_DEFAULT_PERMISSION, None).await?;
 
-    // Channel to gracefully shut down the server. It's currently not used.
-    let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    Ok(tokio::spawn(async move {
+        // Channel to gracefully shut down the server. It's currently not used.
+        let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
-    let () = incoming.serve(service, shutdown_rx).await?;
+        log::info!("Starting admin server");
+        let res = incoming.serve(service, shutdown_rx).await;
+        if let Err(err) = res {
+            log::error!("Closing admin server: {:?}", err);
+        } else {
+            log::info!("Closing admin server");
+        };
 
-    log::info!("Stopped server.");
-
-    Ok(())
+        Ok(())
+    }))
 }
 
 pub mod uri {
@@ -55,43 +62,21 @@ pub mod uri {
     pub const SELECT_GET_REGISTRATION_ENTRIES: &str = "/select-list-entries";
 }
 
-struct Api<C>
-where
-    C: Entries + Send + Sync + 'static,
-{
-    catalog: Arc<C>,
+#[derive(Clone)]
+struct Api {
+    catalog: Arc<dyn Catalog + Sync + Send>,
 }
 
-impl<C> Clone for Api<C>
-where
-    C: Entries + Send + Sync + 'static,
-{
-    fn clone(&self) -> Self {
-        Self {
-            catalog: self.catalog.clone(),
-        }
-    }
-}
-
-impl<C> Api<C>
-where
-    C: Entries + Send + Sync + 'static,
-{
+impl Api {
     pub async fn create_registration_entries(
         &self,
         req: create_registration_entries::Request,
     ) -> create_registration_entries::Response {
-        let mut results = Vec::new();
-
-        let catalog_results = self.catalog.batch_create(req.entries).await;
-
-        for (id, result) in catalog_results {
-            let result = result
-                .map(|_| id.clone())
-                .map_err(|err| operation::Error::from(Error::CreateEntry(Box::new(err), id)));
-
-            results.push(result);
-        }
+        let results = self
+            .catalog
+            .batch_create(req.entries)
+            .await
+            .map_err(|err| err.into_iter().map(operation::Error::from).collect());
 
         create_registration_entries::Response { results }
     }
@@ -100,17 +85,11 @@ where
         &self,
         req: update_registration_entries::Request,
     ) -> update_registration_entries::Response {
-        let mut results = Vec::new();
-
-        let catalog_results = self.catalog.batch_update(req.entries).await;
-
-        for (id, result) in catalog_results {
-            let result = result
-                .map(|_| id.clone())
-                .map_err(|err| operation::Error::from(Error::UpdateEntry(Box::new(err), id)));
-
-            results.push(result);
-        }
+        let results = self
+            .catalog
+            .batch_update(req.entries)
+            .await
+            .map_err(|err| err.into_iter().map(operation::Error::from).collect());
 
         update_registration_entries::Response { results }
     }
@@ -124,8 +103,7 @@ where
         let catalog_results = self.catalog.batch_get(&req.ids).await;
 
         for (id, result) in catalog_results {
-            let result =
-                result.map_err(|err| operation::Error::from(Error::GetEntry(Box::new(err), id)));
+            let result = result.map_err(|err| operation::Error::from((id, err)));
 
             results.push(result);
         }
@@ -143,7 +121,7 @@ where
             .catalog
             .list_all(params.page_token, page_size)
             .await
-            .map_err(|err| Error::ListEntry(Box::new(err)))?;
+            .map_err(|err| Error::ListEntry(err))?;
 
         let response = list_all::Response {
             entries,
@@ -157,17 +135,11 @@ where
         &self,
         req: delete_registration_entries::Request,
     ) -> delete_registration_entries::Response {
-        let mut results = Vec::new();
-
-        let catalog_results = self.catalog.batch_delete(&req.ids).await;
-
-        for (id, result) in catalog_results {
-            let result = result
-                .map(|_| id.clone())
-                .map_err(|err| operation::Error::from(Error::DeleteEntry(Box::new(err), id)));
-
-            results.push(result);
-        }
+        let results = self
+            .catalog
+            .batch_delete(&req.ids)
+            .await
+            .map_err(|err| err.into_iter().map(operation::Error::from).collect());
 
         delete_registration_entries::Response { results }
     }
@@ -175,19 +147,23 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use catalog::inmemory::Catalog;
-    use server_admin_api::RegistrationEntry;
+    use core_objects::{RegistrationEntry, SPIFFEID};
 
-    fn init() -> (Api<Catalog>, Vec<RegistrationEntry>) {
+    use super::*;
+
+    fn init() -> (Api, Vec<RegistrationEntry>) {
         let catalog = Arc::new(catalog::inmemory::Catalog::new());
 
         let api = Api { catalog };
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
 
         let entry = RegistrationEntry {
             id: String::from("id"),
             iot_hub_id: None,
-            spiffe_id: String::from("spiffe id"),
+            spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
             admin: false,
@@ -208,11 +184,7 @@ mod tests {
 
         let req = create_registration_entries::Request { entries };
 
-        let res = api.create_registration_entries(req).await;
-
-        for res in res.results {
-            assert!(res.is_ok());
-        }
+        api.create_registration_entries(req).await.results.unwrap();
     }
 
     #[tokio::test]
@@ -227,10 +199,13 @@ mod tests {
         let req = create_registration_entries::Request {
             entries: entries.clone(),
         };
-        let res = api.create_registration_entries(req).await;
+        let res = api
+            .create_registration_entries(req)
+            .await
+            .results
+            .unwrap_err();
 
-        for res in res.results {
-            let res = res.unwrap_err();
+        for res in res {
             assert_eq!(res.id, "id".to_string());
         }
     }
@@ -247,11 +222,7 @@ mod tests {
         let req = update_registration_entries::Request {
             entries: entries.clone(),
         };
-        let res = api.update_registration_entries(req).await;
-
-        for res in res.results {
-            assert!(res.is_ok());
-        }
+        api.update_registration_entries(req).await.results.unwrap();
     }
 
     #[tokio::test]
@@ -260,9 +231,12 @@ mod tests {
 
         let req = update_registration_entries::Request { entries };
 
-        let res = api.update_registration_entries(req).await;
-        for res in res.results {
-            let res = res.unwrap_err();
+        let res = api
+            .update_registration_entries(req)
+            .await
+            .results
+            .unwrap_err();
+        for res in res {
             assert_eq!(res.id, "id".to_string());
         }
     }
@@ -279,11 +253,7 @@ mod tests {
 
         let _res = api.create_registration_entries(req).await;
         let req = delete_registration_entries::Request { ids };
-        let res = api.delete_registration_entries(req).await;
-
-        for res in res.results {
-            assert!(res.is_ok());
-        }
+        api.delete_registration_entries(req).await.results.unwrap();
     }
 
     #[tokio::test]
@@ -298,10 +268,13 @@ mod tests {
 
         let _res = api.create_registration_entries(req).await;
         let req = delete_registration_entries::Request { ids };
-        let res = api.delete_registration_entries(req).await;
+        let res = api
+            .delete_registration_entries(req)
+            .await
+            .results
+            .unwrap_err();
 
-        for res in res.results {
-            let res = res.unwrap_err();
+        for res in res {
             assert_eq!(res.id, "dummy".to_string());
         }
     }
@@ -309,10 +282,14 @@ mod tests {
     #[tokio::test]
     pub async fn list_registration_entries_test_happy_path() {
         let (api, mut entries) = init();
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             iot_hub_id: None,
-            spiffe_id: String::from("spiffe id"),
+            spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
             admin: false,
@@ -364,10 +341,14 @@ mod tests {
     #[tokio::test]
     pub async fn list_registration_entries_test_error_path() {
         let (api, mut entries) = init();
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             iot_hub_id: None,
-            spiffe_id: String::from("spiffe id"),
+            spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
             admin: false,
@@ -394,10 +375,14 @@ mod tests {
     #[tokio::test]
     pub async fn select_list_registration_entries_test_happy_path() {
         let (api, mut entries) = init();
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             iot_hub_id: None,
-            spiffe_id: String::from("spiffe id"),
+            spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
             admin: false,

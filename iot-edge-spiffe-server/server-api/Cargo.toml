@@ -19,12 +19,21 @@ url = "2"
 
 catalog = { path = "../catalog" }
 config = { path = "../config" }
+core-objects = { path = "../../common/core-objects" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
 server-agent-api = { path = "../../common/server-agent-api" }
+svid-factory = { path = "../svid-factory" }
+trust-bundle-builder = { path = "../trust-bundle-builder" }
 
 http-common = { git = "https://github.com/Azure/iot-identity-service" }
 
+[dev-dependencies]
+matches = "0.1.9"
+tempdir = "0.3.7"
+tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
+
+common = { path = "../common", features = ["tests"] }
 
 [features]
 tests = []

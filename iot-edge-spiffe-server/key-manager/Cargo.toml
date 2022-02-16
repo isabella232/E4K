@@ -13,11 +13,12 @@ uuid = { version = "0.8", features = ["v4"] }
 
 catalog = { path = "../catalog" }
 config = { path = "../config" }
-common = { path = "../common" }
+core-objects = { path = "../../common/core-objects" }
 key-store = { path = "../key-store" }
 
+
+
 [dev-dependencies]
-matches = "0.1.9"
 tempdir = "0.3.7"
 
 common = { path = "../common", features = ["tests"] }

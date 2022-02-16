@@ -23,6 +23,8 @@ openssl2 = { git = "https://github.com/Azure/iot-identity-service" }
 openssl-sys2 = { git = "https://github.com/Azure/iot-identity-service" }
 
 common = { path = "../common" }
+core-objects = { path = "../../common/core-objects" }
+
 
 [dev-dependencies]
 matches = "0.1.9"

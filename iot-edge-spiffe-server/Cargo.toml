@@ -1,13 +1,14 @@
 [workspace]
 members = [
-	"serverd",
-	"common",
-	"config",
-	"admin-api",
-	"server-api",
-	"key-store",
-	"key-manager",
+	"admin-api",	
 	"catalog",
+	"common",
+	"config",	
+	"key-manager",
+	"key-store",
+	"server-api",	
+	"serverd",
+	"trust-bundle-builder",
 ]
 
 [profile.dev]

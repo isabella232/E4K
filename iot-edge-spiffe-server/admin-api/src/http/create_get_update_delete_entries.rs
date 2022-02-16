@@ -6,7 +6,6 @@
 use std::borrow::Cow;
 
 use crate::{uri, Api};
-use catalog::Entries;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use server_admin_api::{
@@ -14,22 +13,16 @@ use server_admin_api::{
     update_registration_entries, ApiVersion,
 };
 
-pub(super) struct Route<C>
-where
-    C: Entries + Send + Sync + 'static,
-{
+pub(super) struct Route {
     page_size: Option<String>,
     page_token: Option<String>,
-    api: Api<C>,
+    api: Api,
 }
 
 #[async_trait::async_trait]
-impl<C> server::Route for Route<C>
-where
-    C: Entries + Send + Sync + 'static,
-{
+impl server::Route for Route {
     type ApiVersion = ApiVersion;
-    type Service = super::Service<C>;
+    type Service = super::Service;
     type DeleteBody = delete_registration_entries::Request;
     type PostBody = create_registration_entries::Request;
     type PutBody = update_registration_entries::Request;
