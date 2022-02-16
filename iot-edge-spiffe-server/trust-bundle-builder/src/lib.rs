@@ -64,6 +64,7 @@ mod tests {
     use super::*;
     use catalog::inmemory;
     use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
+    use core_objects::CONFIG_DEFAULT_PATH;
     use key_manager::KeyManager;
     use key_store::disk;
 
@@ -71,7 +72,7 @@ mod tests {
     use tempdir::TempDir;
 
     async fn init() -> (Arc<TrustBundleBuilder>, config::Config, KeyManager) {
-        let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
+        let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let key_plugin = KeyStoreConfigDisk {

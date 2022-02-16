@@ -20,12 +20,13 @@ use core_objects::{
 };
 use error::Error;
 use key_manager::KeyManager;
-
+use openssl::sha;
 pub struct SVIDFactory {
     key_manager: Arc<KeyManager>,
     jwt_ttl: u64,
 }
 
+#[derive(Clone)]
 pub struct JWTSVIDParams {
     pub spiffe_id: SPIFFEID,
     pub audiences: Vec<SPIFFEID>,
@@ -86,14 +87,15 @@ impl SVIDFactory {
 
         let signature = format!("{}.{}", header_compact, claims_compact);
 
+        let signature = match self.key_manager.jwt_key_type {
+            core_objects::KeyType::ES256 => sha::sha256(signature.as_bytes()),
+            _ => return Err(Error::UnimplementedKeyType(self.key_manager.jwt_key_type)),
+        };
+
         let signature = self
             .key_manager
             .key_store
-            .sign(
-                &jwt_key.id,
-                self.key_manager.jwt_key_type,
-                signature.as_bytes(),
-            )
+            .sign(&jwt_key.id, self.key_manager.jwt_key_type, &signature)
             .await
             .map_err(Error::SigningDigest)?;
 
@@ -114,6 +116,7 @@ mod tests {
     use super::*;
     use catalog::inmemory;
     use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
+    use core_objects::CONFIG_DEFAULT_PATH;
     use key_manager::KeyManager;
     use key_store::disk;
     use matches::assert_matches;
@@ -121,7 +124,7 @@ mod tests {
     use tempdir::TempDir;
 
     async fn init() -> (SVIDFactory, config::Config) {
-        let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
+        let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let key_plugin = KeyStoreConfigDisk {

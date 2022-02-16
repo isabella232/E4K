@@ -161,3 +161,6 @@ pub fn get_epoch_time() -> u64 {
         .expect("Epoch should succeed");
     epoch.as_secs()
 }
+
+#[cfg(feature = "tests")]
+pub const CONFIG_DEFAULT_PATH: &str = "../../iot-edge-spiffe-server/config/tests/Config.toml";

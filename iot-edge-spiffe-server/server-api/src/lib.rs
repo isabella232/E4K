@@ -125,7 +125,8 @@ mod tests {
     use catalog::inmemory;
     use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use core_objects::{
-        NodeAttestation, NodeAttestationPlugin, RegistrationEntry, Selectors, SPIFFEID,
+        NodeAttestation, NodeAttestationPlugin, RegistrationEntry, Selectors, CONFIG_DEFAULT_PATH,
+        SPIFFEID,
     };
     use key_manager::KeyManager;
     use key_store::disk;
@@ -135,7 +136,7 @@ mod tests {
     use tempdir::TempDir;
 
     async fn init() -> (Api, Vec<RegistrationEntry>, Arc<KeyManager>, Config) {
-        let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
+        let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let key_plugin = KeyStoreConfigDisk {

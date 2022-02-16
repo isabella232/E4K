@@ -193,12 +193,13 @@ mod tests {
     use crate::KeyManager;
     use catalog::{inmemory, Catalog};
     use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
+    use core_objects::CONFIG_DEFAULT_PATH;
     use key_store::{disk, KeyStore};
     use std::sync::Arc;
     use tempdir::TempDir;
 
     async fn init() -> KeyManager {
-        let mut config = Config::load_config(common::CONFIG_DEFAULT_PATH).unwrap();
+        let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();
         let key_plugin = KeyStoreConfigDisk {

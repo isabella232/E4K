@@ -21,7 +21,7 @@ key-store = { path = "../key-store" }
 [dev-dependencies]
 tempdir = "0.3.7"
 
-common = { path = "../common", features = ["tests"] }
+core-objects = { path = "../../common/core-objects", features = ["tests"] }
 
 [features]
 tests = []

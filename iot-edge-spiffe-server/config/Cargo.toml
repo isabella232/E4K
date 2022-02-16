@@ -9,7 +9,6 @@ edition = "2021"
 serde = { version = "1", features = ["derive"] }
 toml = "0.5" 
 
-common = { path = "../common" }
 core-objects = { path = "../../common/core-objects" }
 
 [features]

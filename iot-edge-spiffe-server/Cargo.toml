@@ -2,11 +2,11 @@
 members = [
 	"admin-api",	
 	"catalog",
-	"common",
 	"config",	
 	"key-manager",
 	"key-store",
 	"server-api",	
+	"svid-factory",
 	"serverd",
 	"trust-bundle-builder",
 ]

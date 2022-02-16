@@ -124,17 +124,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "config"
 version = "0.1.0"
 dependencies = [
- "common",
  "core-objects",
  "serde",
  "toml",
@@ -557,7 +549,6 @@ name = "key-manager"
 version = "0.1.0"
 dependencies = [
  "catalog",
- "common",
  "config",
  "core-objects",
  "key-store",
@@ -574,7 +565,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "aziot-keys-common",
- "common",
  "config",
  "core-objects",
  "foreign-types-shared",
@@ -1046,7 +1036,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "catalog",
- "common",
  "config",
  "core-objects",
  "futures-util",
@@ -1129,12 +1118,12 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "catalog",
- "common",
  "config",
  "core-objects",
  "key-manager",
  "key-store",
  "matches",
+ "openssl",
  "serde_json",
  "tempdir",
  "thiserror",
@@ -1318,7 +1307,6 @@ name = "trust-bundle-builder"
 version = "0.1.0"
 dependencies = [
  "catalog",
- "common",
  "config",
  "core-objects",
  "key-manager",

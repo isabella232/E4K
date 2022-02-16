@@ -22,11 +22,11 @@ logger = { git = "https://github.com/Azure/iot-identity-service" }
 openssl2 = { git = "https://github.com/Azure/iot-identity-service" }
 openssl-sys2 = { git = "https://github.com/Azure/iot-identity-service" }
 
-common = { path = "../common" }
 core-objects = { path = "../../common/core-objects" }
 
 
 [dev-dependencies]
+core-objects = { path = "../../common/core-objects", features = ["tests"] }
 matches = "0.1.9"
 tempdir = "0.3.7"
 tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
