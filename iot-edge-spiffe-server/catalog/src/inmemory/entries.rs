@@ -142,7 +142,7 @@ impl Entries for Catalog {
 #[cfg(test)]
 mod tests {
 
-    use core_objects::SPIFFEID;
+    use core_objects::{NodeAttestation, NodeAttestationPlugin, Selectors, SPIFFEID};
     use matches::assert_matches;
 
     use super::*;
@@ -157,8 +157,10 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            parent_id: None,
-            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            selectors: Selectors::Node(NodeAttestation {
+                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+                plugin: NodeAttestationPlugin::Sat,
+            }),
             admin: false,
             ttl: 0,
             expires_at: 0,

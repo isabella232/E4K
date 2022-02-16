@@ -68,14 +68,9 @@ content-type: application/json
     "entries" : [ 
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "iot_hub_id" : { (Optional)
-            "iot_hub_hostname" : "string: IoTHub hostname",
-            "device_id" : "string: device id",
-            "module_id" : "string: module id"
-          }
+          "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...],
+          "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
@@ -102,14 +97,9 @@ POST   /entries?api-version=2022_06_01
     "entries" : [ 
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "iot_hub_id" : { (Optional)
-            "iot_hub_hostname" : "string: IoTHub hostname",
-            "device_id" : "string: device id",
-            "module_id" : "string: module id"
-          }
+          "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...],
+          "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
@@ -151,14 +141,9 @@ PUT   /entries?api-version=2022_06_01
     "entries" : [ 
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "iot_hub_id" : { (Optional)
-            "iot_hub_hostname" : "string: IoTHub hostname",
-            "device_id" : "string: device id",
-            "module_id" : "string: module id"
-          }
+          "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...],
+          "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",
@@ -247,14 +232,9 @@ content-type: application/json
     "entries" : [ 
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
-          "iot_hub_id" : { (Optional)
-            "iot_hub_hostname" : "string: IoTHub hostname",
-            "device_id" : "string: device id",
-            "module_id" : "string: module id"
-          }
+          "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
           "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
-          "parent_id" : "optional string: who the entry is delegated to. If none, node selector must be used."
-          "selectors" : ["string: selector1", "string: selector2", "...],
+          "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
           "expires_at" : "uint64: seconds since Unix epoch, when the entry expires",

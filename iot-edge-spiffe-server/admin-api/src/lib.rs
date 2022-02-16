@@ -147,7 +147,9 @@ impl Api {
 
 #[cfg(test)]
 mod tests {
-    use core_objects::{RegistrationEntry, SPIFFEID};
+    use core_objects::{
+        NodeAttestation, NodeAttestationPlugin, RegistrationEntry, Selectors, SPIFFEID,
+    };
 
     use super::*;
 
@@ -164,8 +166,10 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            parent_id: None,
-            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            selectors: Selectors::Node(NodeAttestation {
+                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+                plugin: NodeAttestationPlugin::Sat,
+            }),
             admin: false,
             ttl: 0,
             expires_at: 0,
@@ -290,8 +294,10 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            parent_id: None,
-            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            selectors: Selectors::Node(NodeAttestation {
+                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+                plugin: NodeAttestationPlugin::Sat,
+            }),
             admin: false,
             ttl: 0,
             expires_at: 0,
@@ -349,8 +355,10 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            parent_id: None,
-            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            selectors: Selectors::Node(NodeAttestation {
+                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+                plugin: NodeAttestationPlugin::Sat,
+            }),
             admin: false,
             ttl: 0,
             expires_at: 0,
@@ -383,8 +391,10 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            parent_id: None,
-            selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
+            selectors: Selectors::Node(NodeAttestation {
+                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+                plugin: NodeAttestationPlugin::Sat,
+            }),
             admin: false,
             ttl: 0,
             expires_at: 0,

@@ -74,7 +74,7 @@ pub enum WorkloadAttestationPlugin {
     Docker,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct IoTHubId {
     pub iot_hub_hostname: String,
     pub device_id: String,
@@ -105,8 +105,9 @@ pub struct JWTClaims {
 }
 
 #[derive(PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
 pub enum IdentityTypes {
-    IoTHub,
+    IoTHub(IoTHubId),
     Custom(String),
 }
 
