@@ -155,7 +155,7 @@ mod tests {
 
         let entry1 = RegistrationEntry {
             id: String::from("id"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),

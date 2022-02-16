@@ -29,16 +29,49 @@ impl std::fmt::Display for SPIFFEID {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct RegistrationEntry {
     pub id: String,
-    pub iot_hub_id: Option<IoTHubId>,
+    pub other_identities: Vec<(IdentityTypes, String)>,
     pub spiffe_id: SPIFFEID,
-    pub parent_id: Option<String>,
-    pub selectors: Vec<String>,
+    pub selectors: Selectors,
     pub admin: bool,
     pub ttl: u64,
     pub expires_at: u64,
     pub dns_names: Vec<String>,
     pub revision_number: u64,
     pub store_svid: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
+pub enum Selectors {
+    Workload(WorkloadAttestation),
+    Node(NodeAttestation),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkloadAttestation {
+    pub parent_id: SPIFFEID,
+    pub value: Vec<String>,
+    pub plugin: WorkloadAttestationPlugin,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NodeAttestation {
+    pub value: Vec<String>,
+    pub plugin: NodeAttestationPlugin,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NodeAttestationPlugin {
+    Psat,
+    Sat,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorkloadAttestationPlugin {
+    K8s,
+    Docker,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -68,7 +101,13 @@ pub struct JWTClaims {
     pub audience: Vec<SPIFFEID>,
     pub expiry: u64,
     pub issued_at: u64,
-    pub iot_hub_id: Option<IoTHubId>,
+    pub other_identities: Vec<(IdentityTypes, String)>,
+}
+
+#[derive(PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum IdentityTypes {
+    IoTHub,
+    Custom(String),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]

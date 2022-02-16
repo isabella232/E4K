@@ -16,7 +16,7 @@ use std::{cmp::min, sync::Arc};
 
 use config::Config;
 use core_objects::{
-    get_epoch_time, IoTHubId, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, SPIFFEID,
+    get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, SPIFFEID,
 };
 use error::Error;
 use key_manager::KeyManager;
@@ -29,7 +29,7 @@ pub struct SVIDFactory {
 pub struct JWTSVIDParams {
     pub spiffe_id: SPIFFEID,
     pub audiences: Vec<SPIFFEID>,
-    pub iot_hub_id: Option<IoTHubId>,
+    pub other_identities: Vec<(IdentityTypes, String)>,
 }
 
 impl SVIDFactory {
@@ -73,7 +73,7 @@ impl SVIDFactory {
             audience: jwt_svid_params.audiences,
             expiry,
             issued_at,
-            iot_hub_id: jwt_svid_params.iot_hub_id,
+            other_identities: jwt_svid_params.other_identities,
         };
 
         let header_compact = serde_json::to_string(&header).map_err(Error::ErrorJSONSerializing)?;
@@ -161,7 +161,7 @@ mod tests {
                 path: "audiences".to_string(),
             }]
             .to_vec(),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
         };
 
         let jwt_svid = svid_factory
@@ -190,7 +190,7 @@ mod tests {
                 path: "audiences".to_string(),
             }]
             .to_vec(),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
         };
 
         // Generate an SVID close to the key expiration. The expiry time should not be after the expiration.
@@ -225,7 +225,7 @@ mod tests {
                 path: "audiences".to_string(),
             }]
             .to_vec(),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
         };
 
         let error = svid_factory

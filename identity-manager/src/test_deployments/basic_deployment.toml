@@ -1,8 +1,6 @@
 trust_domain  = "SPIFFE ID trust domain"
 
 server_socket_path = "IoTEdge SPIFFE Server expose CRUD api so IoTEdge Identity Manager can Create/Request/Update and Delete Identities. This is the UDS interface."
-workload_attestation_plugin = "Plugin type for workload attestation."
-node_attestation_plugin = "PSAT" # Selected plugin for node attestation, PSAT, SAT or TPM
 
 [provisioning]
 iothub_hostname = "IoTHub hostname. Required if not using DPS"
@@ -17,29 +15,9 @@ device_id = "Device name in IoTHub. Required if not using DPS"
 ## Agents
 [[entry]]
 spiffe_id = "agent1"
-attestation = "node"
-selectors = { value = "serviceaccount" }
 
-[[entry]]
-spiffe_id = "agent2"
-attestation = "node"
-selectors = { value = "serviceaccount" }
-
-## Modules
-[[entry]]
-spiffe_id = "module1"
-attestation = { parent_id = "agent1" }
-iot_hub_id = "module1"
-selectors = { value = "serviceaccount" }
-
-[[entry]]
-spiffe_id = "module2"
-attestation = { parent_id = "agent1" }
-iot_hub_id = "module2"
-selectors = { value = "serviceaccount" }
-
-[[entry]]
-spiffe_id = "module3"
-attestation = { parent_id = "agent2" }
-iot_hub_id = "module3"
-selectors = { value = "serviceaccount" }
+[entry.selectors]
+type = "NODE" 
+[entry.selectors.content]
+value = ["selector1", "selector2"]
+plugin = "SAT"

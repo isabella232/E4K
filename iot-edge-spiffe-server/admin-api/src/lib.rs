@@ -162,7 +162,7 @@ mod tests {
 
         let entry = RegistrationEntry {
             id: String::from("id"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
@@ -288,7 +288,7 @@ mod tests {
         };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
@@ -347,7 +347,7 @@ mod tests {
         };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),
@@ -381,7 +381,7 @@ mod tests {
         };
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),

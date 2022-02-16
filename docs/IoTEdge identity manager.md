@@ -42,11 +42,12 @@ SPIFFE JWT tokens are the reflections of the entries contained in the identity m
 | Server_socket_path | IoTEdge SPIFFE Server expose CRUD api so IoTEdge Identity Manager can Create/Request/Update and Delete Identities. This is the UDS interface. |
 | Workload_attestation_plugin | Plugin type for workload attestation. |
 | Node_attestation_plugin | Selected plugin for node attestation, PSAT, SAT or TPM |
-| [Entry.SPIFFE_ID] | SPIFFE Id of the workload |
-| [Entry.parent_id] | Optional field. Omitted only for IoTEdge SPIFFE Agent |
-| [Entry.iot_hub_id] | Optional field "iot hub module id" |
-| [Entry.selectors.type] | Node attestation or workload attestation (Depending if parent Id or not is present |
-| [Entry.selectors.value] | Depends on the selected plugin, can be "serviceaccount" or "podlabel" |
+| [Entry[].SPIFFE_ID] | SPIFFE Id of the workload |
+| [Entry[].parent_id] | Optional field. Omitted only for IoTEdge SPIFFE Agent |
+| [Entry[].other_identities[].type] | Optional field, array of identities. This defines the type of one identity. It can be iot hub or custom |
+| [Entry[].other_identities[].value] |Optional field, array of identities. This defines the value of one identity. IoTHub doesn't have value, custom identities require a String to differenciate them. |
+| [Entry[].selectors[].type] | Node attestation or workload attestation (Depending if parent Id or not is present |
+| [Entry[].selectors[].value] | Depends on the selected plugin, can be "serviceaccount" or "podlabel" |
 
 
 

@@ -1,28 +1,14 @@
+use core_objects::IdentityTypes;
+use core_objects::Selectors;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub trust_domain: String,
     pub server_socket_path: String,
-    pub workload_attestation_plugin: String,
-    pub node_attestation_plugin: AttestationPlugin,
     pub provisioning: Provisioning,
     pub entry: Vec<Entry>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum AttestationPlugin {
-    Psat,
-    Sat,
-    Tpm,
-}
-
-impl Default for AttestationPlugin {
-    fn default() -> Self {
-        Self::Psat
-    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,30 +42,13 @@ impl Default for AuthMethod {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub spiffe_id: String,
     pub selectors: Selectors,
-    pub iot_hub_id: Option<String>,
-    pub attestation: Attestation,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Selectors {
-    pub value: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Attestation {
-    Node,
-    ParentId(String),
-}
-
-impl Default for Attestation {
-    fn default() -> Self {
-        Self::Node
-    }
+    #[serde(default)]
+    pub other_identities: Vec<(IdentityTypes, String)>,
+    pub parent_id: Option<String>,
 }
 
 #[cfg(test)]

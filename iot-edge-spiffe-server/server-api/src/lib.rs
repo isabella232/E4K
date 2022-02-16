@@ -93,7 +93,7 @@ impl Api {
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id: entry.spiffe_id,
             audiences: req.audiences,
-            iot_hub_id: entry.iot_hub_id,
+            other_identities: entry.other_identities,
         };
 
         let jwt_svid = self
@@ -147,7 +147,7 @@ mod tests {
 
         let entry = RegistrationEntry {
             id: String::from("id"),
-            iot_hub_id: None,
+            other_identities: Vec::new(),
             spiffe_id,
             parent_id: None,
             selectors: [String::from("selector1"), String::from("selector2")].to_vec(),

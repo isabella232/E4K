@@ -87,7 +87,7 @@ impl SpiffeConnector for SpiffeHttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core_objects::SPIFFEID;
+    use core_objects::{SPIFFEID, Selectors, NodeAttestation, NodeAttestationPlugin};
     use std::sync::Arc;
     use tempfile::{tempdir, TempDir};
     use tokio::time::{sleep, Duration};
@@ -114,13 +114,12 @@ mod tests {
             .iter()
             .map(|id| RegistrationEntry {
                 id: id.to_owned(),
-                iot_hub_id: None,
+                other_identities: Vec::new(),
                 spiffe_id: SPIFFEID {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                parent_id: None,
-                selectors: Vec::new(),
+                selectors: Selectors::Node(NodeAttestation{ value: Vec::new(), plugin: NodeAttestationPlugin::Psat }),
                 admin: false,
                 ttl: 1028,
                 expires_at: 1028,
@@ -172,13 +171,12 @@ mod tests {
             .iter()
             .map(|id| RegistrationEntry {
                 id: id.to_owned(),
-                iot_hub_id: None,
+                other_identities: Vec::new(),
                 spiffe_id: SPIFFEID {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                parent_id: None,
-                selectors: Vec::new(),
+                selectors: Selectors::Node(NodeAttestation{ value: Vec::new(), plugin: NodeAttestationPlugin::Psat }),
                 admin: false,
                 ttl: 1028,
                 expires_at: 1028,
