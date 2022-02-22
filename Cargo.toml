@@ -1,0 +1,21 @@
+[workspace]
+members = [
+	"identity-manager",
+	"identity-manager/spiffe-server-admin-client",
+	"integration-tests",
+	"iot-edge-spiffe-server/admin-api",	
+	"iot-edge-spiffe-server/catalog",
+	"iot-edge-spiffe-server/config",	
+	"iot-edge-spiffe-server/key-manager",
+	"iot-edge-spiffe-server/key-store",
+	"iot-edge-spiffe-server/server-api",	
+	"iot-edge-spiffe-server/svid-factory",
+	"iot-edge-spiffe-server/serverd",
+	"iot-edge-spiffe-server/trust-bundle-builder",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

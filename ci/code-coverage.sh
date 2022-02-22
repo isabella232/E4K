@@ -2,13 +2,12 @@
 
 set -euo pipefail
 
-cd /src/iot-edge-spiffe-server
+cd /src
 
-. ../ci/install-build-deps.sh
+. ./ci/install-build-deps.sh
 
 make -f /src/Makefile SRC=data codecov
-mv coverage /src
 
-cd /src/coverage
+cd coverage
 apt install lcov -y
 lcov --add-tracefile lcov.info

@@ -1,0 +1,18 @@
+[package]
+edition = "2021"
+name = "integration-tests"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dev-dependencies]
+admin-api = {path = "../iot-edge-spiffe-server/admin-api"}
+catalog = {path = "../iot-edge-spiffe-server/catalog"}
+config = {path = "../iot-edge-spiffe-server/config"}
+core-objects = {path = "../common/core-objects"}
+server-admin-api = {path = "../common/server-admin-api"}
+spiffe-server-admin-client = {path = "../identity-manager/spiffe-server-admin-client"}
+tempfile = "3.2"
+tokio = {version = "1", features = ["full"]}

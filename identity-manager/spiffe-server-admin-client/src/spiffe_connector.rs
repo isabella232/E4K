@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use core_objects::RegistrationEntry;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;

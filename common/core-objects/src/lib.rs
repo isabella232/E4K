@@ -154,6 +154,7 @@ pub struct JWK {
     pub expiry: u64,
 }
 
+#[must_use]
 pub fn get_epoch_time() -> u64 {
     let now = SystemTime::now();
     let epoch = now

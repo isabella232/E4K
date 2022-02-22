@@ -11,4 +11,4 @@
     clippy::too_many_lines
 )]
 
-mod config;
+mod spiffe_server_admin_api;

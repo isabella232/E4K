@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use core_objects::IdentityTypes;
 use core_objects::Selectors;
 use serde::Deserialize;
@@ -75,7 +77,7 @@ mod tests {
             raw_config.read_to_end(&mut buf).unwrap();
 
             let _config: Config = toml::from_slice(&buf)
-                .expect(&format!("Could not parse deployment file {:#?}", test_file));
+                .unwrap_or_else(|_| panic!("Could not parse deployment file {:#?}", test_file));
         }
     }
 }
