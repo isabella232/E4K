@@ -5,13 +5,15 @@
 
 use std::borrow::Cow;
 
-use crate::{uri, Api};
+use crate::Api;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use server_admin_api::{
     create_registration_entries, delete_registration_entries, list_all,
     update_registration_entries, ApiVersion,
 };
+
+use super::uri;
 
 pub(super) struct Route {
     page_size: Option<String>,

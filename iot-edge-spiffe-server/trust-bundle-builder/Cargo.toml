@@ -9,7 +9,7 @@ edition = "2021"
 thiserror = "1.0.24"
 
 catalog = { path = "../catalog" }
-config = { path = "../config" }
+server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
 
 [dev-dependencies]

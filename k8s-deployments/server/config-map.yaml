@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iotedge-spiffe-server
+data:
+  Config.toml: |
+    socket_path = "api.sock"
+    trust_domain = "iotedge"
+
+    [jwt]
+    key_type = "ES256"
+    key_ttl = 300
+    ttl = 10
+
+    [trust-bundle]
+    refresh_hint = 1
+
+    [key-store]
+    type = "Disk"
+    [key-store.args]
+    key_base_path = "."
+
+    [catalog]
+    type = "Memory"
+
+    [server-agent-api]
+    bind_address = "0.0.0.0"
+    bind_port = 8443
+
+    [node-attestation-config]
+    type = "PSAT"
+    [node-attestation-config.content]
+    service_account_allow_list = ["iotedge-spiffe-agent"]
+    audience = "iotedge-spiffe-server"
+    cluster_name = "demo-cluster"
+    allowed_node_label_keys = ["node-name"]
+    allowed_pod_label_keys = ["pod-name"]

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: iotedge-spiffe-server
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+  selector:
+    app: iotedge-spiffe-server

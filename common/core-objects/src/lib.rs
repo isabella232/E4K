@@ -10,7 +10,7 @@
     clippy::too_many_lines
 )]
 
-use std::time::SystemTime;
+use std::{collections::BTreeMap, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
 
@@ -29,9 +29,9 @@ impl std::fmt::Display for SPIFFEID {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct RegistrationEntry {
     pub id: String,
-    pub other_identities: Vec<(IdentityTypes, String)>,
+    pub other_identities: Vec<IdentityTypes>,
     pub spiffe_id: SPIFFEID,
-    pub selectors: Selectors,
+    pub attestation_config: AttestationConfig,
     pub admin: bool,
     pub ttl: u64,
     pub expires_at: u64,
@@ -42,22 +42,44 @@ pub struct RegistrationEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
-pub enum Selectors {
-    Workload(WorkloadAttestation),
-    Node(NodeAttestation),
+pub enum AttestationConfig {
+    Workload(WorkloadAttestationConfig),
+    Node(NodeAttestationConfig),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorkloadAttestation {
+pub struct WorkloadAttestationConfig {
     pub parent_id: SPIFFEID,
-    pub value: Vec<String>,
+    pub value: Vec<PodSelector>,
     pub plugin: WorkloadAttestationPlugin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NodeAttestation {
-    pub value: Vec<String>,
+pub struct NodeAttestationConfig {
+    pub value: Vec<NodeSelector>,
     pub plugin: NodeAttestationPlugin,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
+pub enum NodeSelector {
+    Cluster(String),
+    AgentNameSpace(String),
+    AgentServiceAccountName(String),
+    AgentPodName(String),
+    AgentPodUID(String),
+    AgentNodeIP(String),
+    AgentNodeName(String),
+    AgentNodeUID(String),
+    AgentNodeLabels(BTreeMap<String, String>),
+    AgentPodLabels(BTreeMap<String, String>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
+pub enum PodSelector {
+    PodName(String),
+    PodUID(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -101,7 +123,7 @@ pub struct JWTClaims {
     pub audience: Vec<SPIFFEID>,
     pub expiry: u64,
     pub issued_at: u64,
-    pub other_identities: Vec<(IdentityTypes, String)>,
+    pub other_identities: Vec<IdentityTypes>,
 }
 
 #[derive(PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -130,7 +152,7 @@ pub enum KeyType {
     PS512,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct JWTSVIDCompact {
     pub token: String,
     pub spiffe_id: SPIFFEID,
@@ -165,3 +187,6 @@ pub fn get_epoch_time() -> u64 {
 
 #[cfg(feature = "tests")]
 pub const CONFIG_DEFAULT_PATH: &str = "../../iot-edge-spiffe-server/config/tests/Config.toml";
+
+#[cfg(feature = "tests")]
+pub const AGENT_DEFAULT_CONFIG_PATH: &str = "../../iot-edge-spiffe-agent/config/tests/Config.toml";

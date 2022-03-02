@@ -13,9 +13,9 @@
 use std::sync::Arc;
 
 use catalog::Catalog;
-use config::Config;
 use core_objects::TrustBundle;
 use error::Error;
+use server_config::Config;
 
 pub mod error;
 
@@ -63,15 +63,15 @@ impl TrustBundleBuilder {
 mod tests {
     use super::*;
     use catalog::inmemory;
-    use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use core_objects::CONFIG_DEFAULT_PATH;
     use key_manager::KeyManager;
     use key_store::disk;
+    use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
 
     use std::sync::Arc;
     use tempdir::TempDir;
 
-    async fn init() -> (Arc<TrustBundleBuilder>, config::Config, KeyManager) {
+    async fn init() -> (Arc<TrustBundleBuilder>, Config, KeyManager) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();

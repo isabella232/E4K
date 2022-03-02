@@ -1,0 +1,14 @@
+socket_path = "api.sock"
+trust_domain = "iotedge"
+
+[server-config]
+address = "iotedge-spiffe-server"
+port = 8443
+
+[trust-bundle-config]
+type = "INSECUREBOOTSTRAP"
+
+[node_attestation_config]
+type = "PSAT"
+[node_attestation_config.content]
+token_path = "/var/run/secrets/tokens/iotedge-spiffe-agent"

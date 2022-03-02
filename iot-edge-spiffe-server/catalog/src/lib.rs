@@ -7,13 +7,14 @@
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
-    clippy::too_many_lines
+    clippy::too_many_lines,
+    clippy::missing_panics_doc
 )]
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use config::CatalogConfig;
-use core_objects::{RegistrationEntry, JWK};
+use core_objects::{NodeSelector, RegistrationEntry, JWK, SPIFFEID};
+use server_config::CatalogConfig;
 
 pub mod inmemory;
 
@@ -21,7 +22,6 @@ pub struct CatalogFactory {}
 
 impl CatalogFactory {
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get(config: &CatalogConfig) -> Arc<dyn Catalog + Send + Sync> {
         match config {
             CatalogConfig::Disk => unimplemented!(),
@@ -30,7 +30,7 @@ impl CatalogFactory {
     }
 }
 
-pub trait Catalog: Entries + TrustBundleStore {}
+pub trait Catalog: Entries + TrustBundleStore + NodeSelectors {}
 
 /// Entries are writen from the identity manager into the server. Entries contains all the necessary information
 /// to identify a workload and issue a new about a SPIFFE identity to it.
@@ -157,4 +157,32 @@ pub trait TrustBundleStore: Sync + Send {
         &self,
         trust_domain: &str,
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SelectorType {
+    Cluster,
+    AgentNameSpace,
+    AgentServiceAccountName,
+    AgentPodName,
+    AgentPodUID,
+    AgentNodeIP,
+    AgentNodeName,
+    AgentNodeUID,
+    AgentNodeLabels,
+    AgentPodLabels,
+}
+
+#[async_trait::async_trait]
+pub trait NodeSelectors: Sync + Send {
+    async fn get_selectors(
+        &self,
+        spiffe_id: &SPIFFEID,
+    ) -> Result<HashMap<SelectorType, NodeSelector>, Box<dyn std::error::Error + Send>>;
+
+    async fn set_selectors(
+        &self,
+        spiffe_id: &SPIFFEID,
+        selectors: HashMap<SelectorType, NodeSelector>,
+    ) -> Result<(), Box<dyn std::error::Error + Send>>;
 }

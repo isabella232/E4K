@@ -10,7 +10,7 @@
     clippy::too_many_lines
 )]
 
-use std::{fs, io, path::Path};
+use std::{collections::BTreeSet, fs, io, path::Path};
 
 use core_objects::KeyType;
 
@@ -20,13 +20,44 @@ pub struct Config {
     #[serde(alias = "server-agent-api")]
     pub server_agent_api: ServerAgentAPI,
     pub trust_domain: String,
+    #[serde(default = "default_server_spiffe_id")]
+    pub server_spiffe_id: String,
     pub jwt: JWTConfig,
     #[serde(alias = "trust-bundle")]
     pub trust_bundle: TrustBundleConfig,
     #[serde(alias = "key-store")]
     pub key_store: KeyStoreConfig,
     pub catalog: CatalogConfig,
+    #[serde(alias = "node-attestation-config")]
+    pub node_attestation_config: NodeAttestationConfig,
 }
+
+fn default_server_spiffe_id() -> String {
+    "iotedge-spiffe-server".to_string()
+}
+
+// We currently plan to support 2 types of attestations. However,
+// there are many type we could add. See SPIRE document for different examples: https://github.com/spiffe/spire/tree/main/doc
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
+pub enum NodeAttestationConfig {
+    Sat(NodeAttestationConfigSat),
+    Psat(NodeAttestationConfigPsat),
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct NodeAttestationConfigPsat {
+    pub cluster_name: String,
+    pub service_account_allow_list: BTreeSet<String>,
+    pub audience: String,
+    #[serde(default)]
+    pub allowed_node_label_keys: BTreeSet<String>,
+    #[serde(default)]
+    pub allowed_pod_label_keys: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct NodeAttestationConfigSat {}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ServerAgentAPI {

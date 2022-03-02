@@ -13,9 +13,9 @@
 
 use std::sync::Arc;
 
-use config::KeyStoreConfig;
 use core_objects::KeyType;
 use openssl::pkey::{PKey, Public};
+use server_config::KeyStoreConfig;
 
 pub mod disk;
 

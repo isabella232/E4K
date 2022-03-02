@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 mod entries;
 mod error;
+mod node_selectors;
 mod trust_bundle_store;
 
 use std::{
@@ -8,13 +9,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::Catalog as CatalogTrait;
-use core_objects::{RegistrationEntry, JWK};
-use parking_lot::{const_mutex, Mutex};
+use crate::{Catalog as CatalogTrait, SelectorType};
+use core_objects::{NodeSelector, RegistrationEntry, JWK};
+use parking_lot::{const_rwlock, RwLock};
 
 pub struct Catalog {
-    entries_list: Arc<Mutex<BTreeMap<String, RegistrationEntry>>>,
-    jwt_trust_domain: Arc<Mutex<JWTTrustDomain>>,
+    entries_list: Arc<RwLock<BTreeMap<String, RegistrationEntry>>>,
+    jwt_trust_domain: Arc<RwLock<JWTTrustDomain>>,
+    node_selector_store: Arc<RwLock<HashMap<String, HashMap<SelectorType, NodeSelector>>>>,
 }
 
 pub struct JWTTrustDomain {
@@ -29,11 +31,12 @@ impl Catalog {
     #[must_use]
     pub fn new() -> Self {
         Catalog {
-            entries_list: Arc::new(const_mutex(BTreeMap::new())),
-            jwt_trust_domain: Arc::new(const_mutex(JWTTrustDomain {
+            entries_list: Arc::new(const_rwlock(BTreeMap::new())),
+            jwt_trust_domain: Arc::new(const_rwlock(JWTTrustDomain {
                 version: 0,
                 store: HashMap::new(),
             })),
+            node_selector_store: Arc::new(const_rwlock(HashMap::new())),
         }
     }
 }

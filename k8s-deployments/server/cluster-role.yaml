@@ -1,0 +1,31 @@
+# ClusterRole to allow otedge-spiffe-server node attestor to query Token Review API
+# and to be able to push trust-bundles to a configmap
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: iotedge-spiffe-server-trust-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes"]
+  verbs: ["get"]
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["patch", "get", "list"]
+
+---
+# Binds above cluster role to spire-server service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: iotedge-spiffe-server-trust-role-binding
+subjects:
+- kind: ServiceAccount
+  name: iotedge-spiffe-server
+  namespace: default  
+roleRef:
+  kind: ClusterRole
+  name: iotedge-spiffe-server-trust-role
+  apiGroup: rbac.authorization.k8s.io

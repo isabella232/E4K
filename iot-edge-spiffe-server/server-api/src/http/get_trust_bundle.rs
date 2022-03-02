@@ -7,7 +7,9 @@ use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
 use server_agent_api::{get_trust_bundle, ApiVersion};
 
-use crate::{uri, Api};
+use crate::Api;
+
+use super::uri;
 
 pub(super) struct Route {
     x509_cas: Option<String>,
@@ -88,8 +90,8 @@ impl server::Route for Route {
             Err(err) => {
                 return Err(server::Error {
                     status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                    message: format!("Error when building trust bundle: {}", err).into(),
-                })
+                    message: format!("Error building agent jwt: {}", err).into(),
+                });
             }
         };
 

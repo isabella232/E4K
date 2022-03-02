@@ -16,18 +16,27 @@ connection_string = "Connection string"
 
 # Entries
 [[entry]]
-spiffe_id = "agent1"
-[entry.selectors]
+spiffe_id = "agents"
+[entry.attestation_config]
 type = "NODE" 
-[entry.selectors.content]
-value = ["selector1", "selector2"]
+[entry.attestation_config.content]
+value = [{ type = "CLUSTER", content = "dummy"}]
 plugin = "SAT"
 
 [[entry]]
-spiffe_id = "agent2"
-[entry.selectors]
+spiffe_id = "pod1"
+[entry.attestation_config]
 type = "WORKLOAD" 
-[entry.selectors.content]
-value = ["selector1", "selector2"]
+[entry.attestation_config.content]
+value = [{ type = "PODNAME", content = "pod1"}]
 plugin = "K8S"
-parent_id = {trust_domain = "test", path = "test" }
+parent_id = {trust_domain = "test", path = "agents" }
+
+[[entry]]
+spiffe_id = "pod2"
+[entry.attestation_config]
+type = "WORKLOAD" 
+[entry.attestation_config.content]
+value = [{ type = "PODNAME", content = "pod2"}]
+plugin = "K8S"
+parent_id = {trust_domain = "test", path = "agents" }

@@ -12,7 +12,7 @@ openssl = "0.10"
 thiserror = "1.0.24"
 
 
-config = { path = "../config" }
+server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
 key-manager = { path = "../key-manager" }
 
@@ -24,7 +24,7 @@ tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
 
 catalog = { path = "../catalog" }
 core-objects = { path = "../../common/core-objects", features = ["tests"] }
-config = { path = "../config" }
+server-config = { path = "../config" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
 

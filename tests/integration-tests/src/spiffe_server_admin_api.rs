@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod tests {
     use core_objects::{
-        NodeAttestation, NodeAttestationPlugin, RegistrationEntry, Selectors, SPIFFEID,
+        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, RegistrationEntry,
+        SPIFFEID,
     };
     use spiffe_server_admin_client::{SpiffeConnector, SpiffeHttpClient};
     use std::sync::Arc;
@@ -37,7 +38,7 @@ mod tests {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                selectors: Selectors::Node(NodeAttestation {
+                attestation_config: AttestationConfig::Node(NodeAttestationConfig {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),
@@ -97,7 +98,7 @@ mod tests {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                selectors: Selectors::Node(NodeAttestation {
+                attestation_config: AttestationConfig::Node(NodeAttestationConfig {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),
@@ -135,9 +136,10 @@ mod tests {
         let socket = tmp_dir.path().join("api.sock");
         let socket_string: String = socket.as_os_str().to_string_lossy().to_string();
 
-        let mut config =
-            config::Config::load_config("../iot-edge-spiffe-server/config/tests/Config.toml")
-                .unwrap();
+        let mut config = server_config::Config::load_config(
+            "../../iot-edge-spiffe-server/config/tests/Config.toml",
+        )
+        .unwrap();
 
         let server_socket_string = socket_string.clone(); // Need to clone to pass to new thread
         tokio::spawn(async move {

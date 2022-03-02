@@ -2,12 +2,12 @@
 
 use std::path::{Path, PathBuf};
 
-use config::KeyStoreConfigDisk;
 use core_objects::KeyType;
 use openssl::{
     ec, nid,
     pkey::{self, PKey, Public},
 };
+use server_config::KeyStoreConfigDisk;
 
 pub mod error;
 

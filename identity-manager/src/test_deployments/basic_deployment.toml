@@ -16,8 +16,8 @@ device_id = "Device name in IoTHub. Required if not using DPS"
 [[entry]]
 spiffe_id = "agent1"
 
-[entry.selectors]
+[entry.attestation_config]
 type = "NODE" 
-[entry.selectors.content]
-value = ["selector1", "selector2"]
+[entry.attestation_config.content]
+value = [{ type = "CLUSTER", content = "dummy"}]
 plugin = "SAT"

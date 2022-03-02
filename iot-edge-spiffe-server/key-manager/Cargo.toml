@@ -12,7 +12,7 @@ tokio = { version = "1", features = ["time", "macros", "rt-multi-thread", "sync"
 uuid = { version = "0.8", features = ["v4"] }
 
 catalog = { path = "../catalog" }
-config = { path = "../config" }
+server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
 key-store = { path = "../key-store" }
 

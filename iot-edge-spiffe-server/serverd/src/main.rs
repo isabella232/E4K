@@ -10,20 +10,26 @@
     clippy::too_many_lines
 )]
 
+#[cfg(not(any(test, feature = "tests")))]
+use kube::Client;
+#[cfg(any(test, feature = "tests"))]
+use mock_kube::Client;
+
 use catalog::{Catalog, CatalogFactory};
-use config::Config;
-use core_objects::get_epoch_time;
+use core_objects::{get_epoch_time, SPIFFEID};
 use error::Error;
 use futures_util::{future, pin_mut};
 use key_manager::KeyManager;
 use key_store::KeyStoreFactory;
 use log::{error, info};
+use node_attestation_server::{NodeAttestation, NodeAttestatorFactory};
+use server_config::Config;
 use std::{error::Error as StdError, sync::Arc, time::Duration};
 use svid_factory::SVIDFactory;
 use tokio::{sync::Notify, time};
 use trust_bundle_builder::TrustBundleBuilder;
 
-const CONFIG_DEFAULT_PATH: &str = "../Config.toml";
+const CONFIG_DEFAULT_PATH: &str = "/mnt/config/Config.toml";
 
 const KEY_MANAGER_ROTATION_POLL_INTERVAL_SECONDS: u64 = 10;
 
@@ -53,6 +59,11 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     let catalog: Arc<dyn Catalog + Send + Sync> = CatalogFactory::get(&config.catalog);
 
+    let iotedge_server_spiffe_id = SPIFFEID {
+        trust_domain: config.trust_domain.clone(),
+        path: config.server_spiffe_id.to_string(),
+    };
+
     let key_store = KeyStoreFactory::get(&config.key_store);
 
     let key_manager =
@@ -61,6 +72,14 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     let svid_factory = SVIDFactory::new(key_manager.clone(), &config);
     let svid_factory = Arc::new(svid_factory);
+
+    // Infer the runtime environment and try to create a Kubernetes Client
+    let client = Client::try_default().await?;
+    let node_attestation: Arc<dyn NodeAttestation + Send + Sync> = NodeAttestatorFactory::get(
+        &config.node_attestation_config,
+        &config.trust_domain,
+        client,
+    );
 
     let trust_bundle_builder = TrustBundleBuilder::new(&config, catalog.clone());
 
@@ -94,8 +113,15 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
     });
 
     let admin_api_handle = admin_api::start_admin_api(&config, catalog.clone()).await?;
-    let server_api_handle =
-        server_api::start_server_api(&config, catalog, svid_factory, trust_bundle_builder).await?;
+    let server_api_handle = server_api::start_server_api(
+        &config,
+        catalog,
+        svid_factory,
+        trust_bundle_builder,
+        node_attestation,
+        iotedge_server_spiffe_id,
+    )
+    .await?;
 
     let _wait = admin_api_handle.await;
     let _wait = server_api_handle.await;

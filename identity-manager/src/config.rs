@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use core_objects::AttestationConfig;
 use core_objects::IdentityTypes;
-use core_objects::Selectors;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -47,7 +47,7 @@ impl Default for AuthMethod {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub spiffe_id: String,
-    pub selectors: Selectors,
+    pub attestation_config: AttestationConfig,
     #[serde(default)]
     pub other_identities: Vec<(IdentityTypes, String)>,
     pub parent_id: Option<String>,
@@ -76,8 +76,12 @@ mod tests {
             let mut buf = Vec::new();
             raw_config.read_to_end(&mut buf).unwrap();
 
-            let _config: Config = toml::from_slice(&buf)
-                .unwrap_or_else(|_| panic!("Could not parse deployment file {:#?}", test_file));
+            let _config: Config = toml::from_slice(&buf).unwrap_or_else(|err| {
+                panic!(
+                    "Could not parse deployment file {:#?}, error {}",
+                    test_file, err
+                )
+            });
         }
     }
 }

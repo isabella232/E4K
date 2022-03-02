@@ -12,7 +12,7 @@ impl Entries for Catalog {
         &self,
         entries: Vec<RegistrationEntry>,
     ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
-        let mut entries_list = self.entries_list.lock();
+        let mut entries_list = self.entries_list.write();
         let mut errors = Vec::new();
 
         for entry in entries {
@@ -35,7 +35,7 @@ impl Entries for Catalog {
         &self,
         entries: Vec<RegistrationEntry>,
     ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
-        let mut entries_list = self.entries_list.lock();
+        let mut entries_list = self.entries_list.write();
         let mut errors = Vec::new();
 
         for entry in entries {
@@ -58,7 +58,7 @@ impl Entries for Catalog {
         &self,
         ids: &[String],
     ) -> Result<(), Vec<(String, Box<dyn std::error::Error + Send>)>> {
-        let mut entries_list = self.entries_list.lock();
+        let mut entries_list = self.entries_list.write();
         let mut errors = Vec::new();
 
         for id in ids {
@@ -82,7 +82,7 @@ impl Entries for Catalog {
         String,
         Result<RegistrationEntry, Box<dyn std::error::Error + Send>>,
     )> {
-        let entries_list = self.entries_list.lock();
+        let entries_list = self.entries_list.read();
         let mut results = Vec::new();
 
         for id in ids {
@@ -108,7 +108,7 @@ impl Entries for Catalog {
         page_token: Option<String>,
         page_size: usize,
     ) -> Result<(Vec<RegistrationEntry>, Option<String>), Box<dyn std::error::Error + Send>> {
-        let entries_list = self.entries_list.lock();
+        let entries_list = self.entries_list.read();
 
         let mut response: Vec<RegistrationEntry> = Vec::new();
         let mut entry_counter = 0;
@@ -142,7 +142,9 @@ impl Entries for Catalog {
 #[cfg(test)]
 mod tests {
 
-    use core_objects::{NodeAttestation, NodeAttestationPlugin, Selectors, SPIFFEID};
+    use core_objects::{
+        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, NodeSelector, SPIFFEID,
+    };
     use matches::assert_matches;
 
     use super::*;
@@ -157,8 +159,12 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            selectors: Selectors::Node(NodeAttestation {
-                value: [String::from("selector1"), String::from("selector2")].to_vec(),
+            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+                value: [
+                    NodeSelector::Cluster("selector1".to_string()),
+                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                ]
+                .to_vec(),
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,

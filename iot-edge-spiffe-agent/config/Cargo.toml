@@ -1,0 +1,15 @@
+[package]
+name = "agent-config"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.5" 
+
+core-objects = { path = "../../common/core-objects" }
+
+[features]
+tests = []

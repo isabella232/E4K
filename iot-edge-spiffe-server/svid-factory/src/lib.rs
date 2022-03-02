@@ -14,13 +14,13 @@ pub mod error;
 
 use std::{cmp::min, sync::Arc};
 
-use config::Config;
 use core_objects::{
     get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, SPIFFEID,
 };
 use error::Error;
 use key_manager::KeyManager;
 use openssl::sha;
+use server_config::Config;
 pub struct SVIDFactory {
     key_manager: Arc<KeyManager>,
     jwt_ttl: u64,
@@ -30,7 +30,7 @@ pub struct SVIDFactory {
 pub struct JWTSVIDParams {
     pub spiffe_id: SPIFFEID,
     pub audiences: Vec<SPIFFEID>,
-    pub other_identities: Vec<(IdentityTypes, String)>,
+    pub other_identities: Vec<IdentityTypes>,
 }
 
 impl SVIDFactory {
@@ -115,15 +115,15 @@ impl SVIDFactory {
 mod tests {
     use super::*;
     use catalog::inmemory;
-    use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use core_objects::CONFIG_DEFAULT_PATH;
     use key_manager::KeyManager;
     use key_store::disk;
     use matches::assert_matches;
+    use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use std::sync::Arc;
     use tempdir::TempDir;
 
-    async fn init() -> (SVIDFactory, config::Config) {
+    async fn init() -> (SVIDFactory, Config) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let dir = TempDir::new("test").unwrap();
         let key_base_path = dir.into_path().to_str().unwrap().to_string();

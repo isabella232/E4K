@@ -34,7 +34,21 @@ impl std::str::FromStr for ApiVersion {
     }
 }
 
-pub mod create_new_jwt {
+pub mod attest_agent {
+    use core_objects::JWTSVIDCompact;
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Auth {
+        pub token: String,
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Response {
+        pub jwt_svid: JWTSVIDCompact,
+    }
+}
+
+pub mod create_workload_jwt {
     use core_objects::{JWTSVIDCompact, SPIFFEID};
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]

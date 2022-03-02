@@ -1,0 +1,31 @@
+[package]
+name = "server-client"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+futures-util = "0.3"
+mockall = {version = "0.11.0", optional = true}
+hyper = "0.14"
+serde = "1"
+serde_json = "1"
+thiserror = "1.0.24"
+url = "2"
+
+
+agent-config = { path = "../config" }
+core-objects = { path = "../../common/core-objects" }
+server-agent-api = { path = "../../common/server-agent-api" }
+
+http-common = {git = "https://github.com/Azure/iot-identity-service", branch = "main"}
+
+[dev-dependencies]
+
+
+[features]
+tests = ["mockall"]
+
+

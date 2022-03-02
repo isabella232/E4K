@@ -20,3 +20,8 @@ make_service! {
         get_select_entries::Route,
     ],
 }
+
+pub mod uri {
+    pub const CREATE_DELETE_UPDATE_REGISTRATION_ENTRIES: &str = "/entries";
+    pub const SELECT_GET_REGISTRATION_ENTRIES: &str = "/select-list-entries";
+}

@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
-use crate::{uri, Api};
+use crate::Api;
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
 use server_admin_api::{select_get_registration_entries, ApiVersion};
 use std::borrow::Cow;
+
+use super::uri;
 
 pub(super) struct Route {
     api: Api,

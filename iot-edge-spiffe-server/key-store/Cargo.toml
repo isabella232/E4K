@@ -15,7 +15,7 @@ tokio = "1"
 thiserror = "1.0"
 
 
-config = { path = "../config" }
+server-config = { path = "../config" }
 
 aziot-keys-common = { git = "https://github.com/Azure/iot-identity-service" }
 logger = { git = "https://github.com/Azure/iot-identity-service" }

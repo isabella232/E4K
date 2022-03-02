@@ -18,10 +18,11 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 url = "2"
 
 catalog = { path = "../catalog" }
-config = { path = "../config" }
+server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
+node-attestation-server = { path = "../node-attestation"  }
 server-agent-api = { path = "../../common/server-agent-api" }
 svid-factory = { path = "../svid-factory" }
 trust-bundle-builder = { path = "../trust-bundle-builder" }
@@ -29,7 +30,9 @@ trust-bundle-builder = { path = "../trust-bundle-builder" }
 http-common = { git = "https://github.com/Azure/iot-identity-service" }
 
 [dev-dependencies]
+mock-kube = { path = "../../tests/mocks/kube" }
 matches = "0.1.9"
+node-attestation-server = { path = "../node-attestation", features = ["tests"]  }
 tempdir = "0.3.7"
 tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
 

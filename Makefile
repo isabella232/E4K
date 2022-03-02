@@ -41,7 +41,7 @@ ifdef CARGO_TARGET
 endif
 
 ifeq ($(SRC), data)
-	PACKAGE = -p serverd
+	PACKAGE = -p serverd -p agentd -p identity-manager
 	TEST_FEATURES = --features 'tests'
 endif
 

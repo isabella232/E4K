@@ -13,7 +13,7 @@ impl TrustBundleStore for Catalog {
         _trust_domain: &str,
         jwk: JWK,
     ) -> Result<(), Box<dyn std::error::Error + Send>> {
-        let mut jwt_trust_domain = self.jwt_trust_domain.lock();
+        let mut jwt_trust_domain = self.jwt_trust_domain.write();
 
         if jwt_trust_domain.store.contains_key(&jwk.key_id) {
             return Err(Box::new(Error::DuplicatedKey(jwk.key_id)));
@@ -30,7 +30,7 @@ impl TrustBundleStore for Catalog {
         _trust_domain: &str,
         kid: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send>> {
-        let mut jwt_trust_domain = self.jwt_trust_domain.lock();
+        let mut jwt_trust_domain = self.jwt_trust_domain.write();
 
         jwt_trust_domain
             .store
@@ -47,7 +47,7 @@ impl TrustBundleStore for Catalog {
         &self,
         _trust_domain: &str,
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>> {
-        let jwt_trust_domain = self.jwt_trust_domain.lock();
+        let jwt_trust_domain = self.jwt_trust_domain.read();
 
         Ok((
             jwt_trust_domain

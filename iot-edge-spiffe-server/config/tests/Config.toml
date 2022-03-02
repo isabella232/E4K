@@ -20,3 +20,12 @@ type = "Memory"
 [server-agent-api]
 bind_address = "0.0.0.0"
 bind_port = 8443
+
+[node-attestation-config]
+type = "PSAT"
+[node-attestation-config.content]
+service_account_allow_list = ["iotedge-spiffe-agent"]
+audience = "iotedge-spiffe-server"
+cluster_name = "demo-cluster"
+allowed_node_label_keys = ["node-name"]
+allowed_pod_label_keys = ["pod-name"]

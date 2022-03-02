@@ -13,11 +13,11 @@
 mod error;
 
 use catalog::Catalog;
-use config::Config;
 use core_objects::{get_epoch_time, KeyType, JWK};
 use error::Error;
 use key_store::KeyStore;
 use log::info;
+use server_config::Config;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -192,9 +192,9 @@ impl KeyManager {
 mod tests {
     use crate::KeyManager;
     use catalog::{inmemory, Catalog};
-    use config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use core_objects::CONFIG_DEFAULT_PATH;
     use key_store::{disk, KeyStore};
+    use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use std::sync::Arc;
     use tempdir::TempDir;
 

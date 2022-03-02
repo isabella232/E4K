@@ -28,7 +28,7 @@ Some dummy commands to test and run the server
 working directory: iot-edge-spiffe-server/serverd
 
 ## Add entries into the server:
-curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"1\", \"iot_hub_id\" : {\"iot_hub_hostname\" : \"myhub\", \"device_id\": \"my_device\", \"module_id\": \"modid\"}, \"spiffe_id\" : {\"trust_domain\" : \"trust_domain\", \"path\" : \"path\"}, \"parent_id\" : \"ccc\", \"selectors\" : [\"cc\"], \"ttl\" : 0, \"admin\": true, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true }]}"
+curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"1\", \"other_identities\" : [{\"type\": \"IOTHUB\", \"content\": {\"iot_hub_hostname\" : \"myhub\", \"device_id\": \"my_device\", \"module_id\": \"modid\"}}], \"spiffe_id\" : {\"trust_domain\" : \"trust_domain\", \"path\" : \"path\"}, \"admin\": true, \"ttl\" : 0, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true, \"attestation_config\": {\"type\": \"NODE\", \"content\": {\"plugin\": \"PSAT\", \"value\": [{\"type\": \"CLUSTER\", \"content\": \"demo-cluster\"}] }} }]}"
 
 ## Check entries are entered:
 curl --unix-socket api.sock "http://localhost/entries?api-version=2022-06-01&page_size=10"

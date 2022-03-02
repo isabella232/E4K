@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iotedge-spiffe-server
+  labels:
+    app: iotedge-spiffe-server
+spec:
+  selector:
+    matchLabels:
+      app: iotedge-spiffe-server
+  template:
+    metadata:
+      labels:
+        app: iotedge-spiffe-server
+    spec:
+      serviceAccountName: iotedge-spiffe-server
+      containers:
+        - name: iotedge-spiffe-server
+          image: ubuntu
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          command: ["sleep"]
+          args: ["1000000000"]
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: working-repo
+              mountPath: /debug
+            - name: config
+              mountPath: /mnt/config                    
+      volumes:
+        - name: working-repo
+          hostPath:
+            path: /home/azureuser/iot-k8s-identities/target/x86_64-unknown-linux-musl/debug
+        - name: config
+          configMap:
+            name: iotedge-spiffe-server           

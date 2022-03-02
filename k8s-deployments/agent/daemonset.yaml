@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: iotedge-spiffe-agent
+  labels:
+    app: iotedge-spiffe-agent
+spec:
+  selector:
+    matchLabels:
+      app: iotedge-spiffe-agent
+  template:
+    metadata:
+      labels:
+        app: iotedge-spiffe-agent
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet    
+      serviceAccountName: iotedge-spiffe-agent
+      containers:
+        - name: iotedge-spiffe-agent
+          image:  ubuntu
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          command: ["sleep"]
+          args: ["1000000000"]
+          volumeMounts:
+            - name: working-repo
+              mountPath: /debug
+            - name: config
+              mountPath: /mnt/config 
+            - name: iotedge-spiffe-token
+              mountPath: /var/run/secrets/tokens   
+      volumes:
+        - name: working-repo
+          hostPath:
+            path: /home/azureuser/iot-k8s-identities/target/x86_64-unknown-linux-musl/debug
+        - name: config
+          configMap:
+            name: iotedge-spiffe-agent 
+        - name: iotedge-spiffe-token
+          projected:
+            sources:
+            - serviceAccountToken:
+                path: iotedge-spiffe-agent
+                expirationSeconds: 7200
+                audience: iotedge-spiffe-server
