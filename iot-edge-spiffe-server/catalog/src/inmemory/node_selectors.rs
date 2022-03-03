@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use core_objects::{NodeSelector, SPIFFEID};
 
-use crate::{NodeSelectors, SelectorType};
+use crate::{NodeSelectorType, NodeSelectors};
 
 use super::{error::Error, Catalog};
 
@@ -13,7 +13,7 @@ impl NodeSelectors for Catalog {
     async fn get_selectors(
         &self,
         spiffe_id: &SPIFFEID,
-    ) -> Result<HashMap<SelectorType, NodeSelector>, Box<dyn std::error::Error + Send>> {
+    ) -> Result<HashMap<NodeSelectorType, NodeSelector>, Box<dyn std::error::Error + Send>> {
         let node_selector_store = self.node_selector_store.read();
 
         let selectors = node_selector_store
@@ -27,7 +27,7 @@ impl NodeSelectors for Catalog {
     async fn set_selectors(
         &self,
         spiffe_id: &SPIFFEID,
-        selectors: HashMap<SelectorType, NodeSelector>,
+        selectors: HashMap<NodeSelectorType, NodeSelector>,
     ) -> Result<(), Box<dyn std::error::Error + Send>> {
         let mut node_selector_store = self.node_selector_store.write();
 
@@ -41,18 +41,18 @@ impl NodeSelectors for Catalog {
 mod tests {
     use super::*;
 
-    fn init_selector_test() -> (Catalog, SPIFFEID, HashMap<SelectorType, NodeSelector>) {
+    fn init_selector_test() -> (Catalog, SPIFFEID, HashMap<NodeSelectorType, NodeSelector>) {
         let spiffe_id = SPIFFEID {
             trust_domain: "trust_domain".to_string(),
             path: "path".to_string(),
         };
         let mut selectors = HashMap::new();
         selectors.insert(
-            SelectorType::Cluster,
+            NodeSelectorType::Cluster,
             NodeSelector::Cluster("dummy".to_string()),
         );
         selectors.insert(
-            SelectorType::AgentNameSpace,
+            NodeSelectorType::AgentNameSpace,
             NodeSelector::AgentNameSpace("dummy".to_string()),
         );
 

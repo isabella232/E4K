@@ -3,8 +3,7 @@
 #[cfg(test)]
 mod tests {
     use core_objects::{
-        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, RegistrationEntry,
-        SPIFFEID,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, RegistrationEntry, SPIFFEID,
     };
     use spiffe_server_admin_client::{SpiffeConnector, SpiffeHttpClient};
     use std::sync::Arc;
@@ -38,7 +37,7 @@ mod tests {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+                attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),
@@ -98,7 +97,7 @@ mod tests {
                     trust_domain: "trust_domain".to_owned(),
                     path: "path".to_owned(),
                 },
-                attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+                attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),

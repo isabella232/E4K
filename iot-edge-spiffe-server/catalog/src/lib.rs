@@ -107,6 +107,18 @@ pub trait Entries: Sync + Send {
         page_token: Option<String>,
         page_size: usize,
     ) -> Result<(Vec<RegistrationEntry>, Option<String>), Box<dyn std::error::Error + Send>>;
+
+    /// Batch get registration entries
+    ///
+    /// ## Arguments
+    /// * id of the entry
+    ///
+    /// ## Returns
+    /// * Result<RegistrationEntry, Box<dyn std::error::Error + Send>>: The registration entry
+    async fn get_entry(
+        &self,
+        id: &str,
+    ) -> Result<RegistrationEntry, Box<dyn std::error::Error + Send>>;
 }
 
 /// The trust bundle store contains all the public keys necessary to validate  JWT tokens or trust certificates.
@@ -159,11 +171,45 @@ pub trait TrustBundleStore: Sync + Send {
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>>;
 }
 
+/// The NodeSelectors trait is implemented by the catalog to store parent and workload selectors.
+/// Those selectors are then used when a request is to request a token on behalf of a workload.
+/// When an Agent make a request on behalf of a workload, the workload + agent selectors are provided in the request.
+/// Those selectors need to match all the parent + workload selectors in the entry.
+#[async_trait::async_trait]
+pub trait NodeSelectors: Sync + Send {
+    /// get all selectors for the requested SPIFFEID
+    ///
+    /// ## Arguments
+    /// * `spiffe_id` - The SPIFFE ID to target the selectors.
+    ///
+    /// ## Returns
+    /// * `Ok(HashMap<NodeSelectorType, NodeSelector>)` - Hash of selectors keyed by selector type
+    /// * `Err(e)` - an error occurred while getting the selectors
+    async fn get_selectors(
+        &self,
+        spiffe_id: &SPIFFEID,
+    ) -> Result<HashMap<NodeSelectorType, NodeSelector>, Box<dyn std::error::Error + Send>>;
+
+    /// set selectors for the specified SPIFFEID
+    ///
+    /// ## Arguments
+    /// * `spiffe_id` - The SPIFFE ID to target the selectors.
+    ///
+    /// ## Returns
+    /// * `Ok(HashMap<NodeSelectorType, NodeSelector>)` - Hash of selectors keyed by selector type
+    /// * `Err(e)` - an error occurred while getting the selectors
+    async fn set_selectors(
+        &self,
+        spiffe_id: &SPIFFEID,
+        selectors: HashMap<NodeSelectorType, NodeSelector>,
+    ) -> Result<(), Box<dyn std::error::Error + Send>>;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum SelectorType {
+pub enum NodeSelectorType {
     Cluster,
     AgentNameSpace,
-    AgentServiceAccountName,
+    AgentServiceAccount,
     AgentPodName,
     AgentPodUID,
     AgentNodeIP,
@@ -173,16 +219,19 @@ pub enum SelectorType {
     AgentPodLabels,
 }
 
-#[async_trait::async_trait]
-pub trait NodeSelectors: Sync + Send {
-    async fn get_selectors(
-        &self,
-        spiffe_id: &SPIFFEID,
-    ) -> Result<HashMap<SelectorType, NodeSelector>, Box<dyn std::error::Error + Send>>;
-
-    async fn set_selectors(
-        &self,
-        spiffe_id: &SPIFFEID,
-        selectors: HashMap<SelectorType, NodeSelector>,
-    ) -> Result<(), Box<dyn std::error::Error + Send>>;
+impl From<&NodeSelector> for NodeSelectorType {
+    fn from(selector: &NodeSelector) -> Self {
+        match selector {
+            NodeSelector::Cluster(_) => NodeSelectorType::Cluster,
+            NodeSelector::AgentNameSpace(_) => NodeSelectorType::AgentNameSpace,
+            NodeSelector::AgentServiceAccount(_) => NodeSelectorType::AgentServiceAccount,
+            NodeSelector::AgentPodName(_) => NodeSelectorType::AgentPodName,
+            NodeSelector::AgentPodUID(_) => NodeSelectorType::AgentPodUID,
+            NodeSelector::AgentNodeIP(_) => NodeSelectorType::AgentNodeIP,
+            NodeSelector::AgentNodeName(_) => NodeSelectorType::AgentNodeName,
+            NodeSelector::AgentNodeUID(_) => NodeSelectorType::AgentNodeUID,
+            NodeSelector::AgentNodeLabels(_) => NodeSelectorType::AgentNodeLabels,
+            NodeSelector::AgentPodLabels(_) => NodeSelectorType::AgentPodLabels,
+        }
+    }
 }

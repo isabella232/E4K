@@ -20,14 +20,14 @@ use mock_kube::Client;
 
 use std::{collections::HashMap, sync::Arc};
 
-use catalog::SelectorType;
+use catalog::NodeSelectorType;
 use core_objects::{NodeSelector, SPIFFEID};
 use server_config::NodeAttestationConfig;
 
 #[derive(Clone, Debug)]
 pub struct AgentAttributes {
     pub spiffe_id: SPIFFEID,
-    pub selectors: HashMap<SelectorType, NodeSelector>,
+    pub selectors: HashMap<NodeSelectorType, NodeSelector>,
 }
 
 pub struct NodeAttestatorFactory {}

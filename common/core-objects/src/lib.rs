@@ -43,19 +43,19 @@ pub struct RegistrationEntry {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
 pub enum AttestationConfig {
-    Workload(WorkloadAttestationConfig),
-    Node(NodeAttestationConfig),
+    Workload(EntryWorkloadAttestation),
+    Node(EntryNodeAttestation),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorkloadAttestationConfig {
-    pub parent_id: SPIFFEID,
-    pub value: Vec<PodSelector>,
+pub struct EntryWorkloadAttestation {
+    pub parent_id: String,
+    pub value: Vec<WorkloadSelector>,
     pub plugin: WorkloadAttestationPlugin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NodeAttestationConfig {
+pub struct EntryNodeAttestation {
     pub value: Vec<NodeSelector>,
     pub plugin: NodeAttestationPlugin,
 }
@@ -65,7 +65,7 @@ pub struct NodeAttestationConfig {
 pub enum NodeSelector {
     Cluster(String),
     AgentNameSpace(String),
-    AgentServiceAccountName(String),
+    AgentServiceAccount(String),
     AgentPodName(String),
     AgentPodUID(String),
     AgentNodeIP(String),
@@ -77,9 +77,10 @@ pub enum NodeSelector {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
-pub enum PodSelector {
-    PodName(String),
-    PodUID(String),
+pub enum WorkloadSelector {
+    WorkloadServiceAccount(String),
+    WorkloadName(String),
+    WorkloadUID(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

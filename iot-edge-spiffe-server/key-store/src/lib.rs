@@ -8,7 +8,8 @@
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::similar_names,
-    clippy::too_many_lines
+    clippy::too_many_lines,
+    clippy::missing_panics_doc
 )]
 
 use std::sync::Arc;
@@ -23,7 +24,6 @@ pub struct KeyStoreFactory {}
 
 impl KeyStoreFactory {
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get(config: &KeyStoreConfig) -> Arc<dyn KeyStore + Send + Sync> {
         match config {
             KeyStoreConfig::Disk(config) => Arc::new(disk::KeyStore::new(config)),

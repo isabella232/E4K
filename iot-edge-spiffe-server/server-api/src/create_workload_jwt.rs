@@ -54,7 +54,7 @@ mod tests {
     use super::*;
     use catalog::inmemory;
     use core_objects::{
-        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, RegistrationEntry,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, RegistrationEntry,
         CONFIG_DEFAULT_PATH, SPIFFEID,
     };
     use key_manager::KeyManager;
@@ -86,7 +86,7 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: Vec::new(),
                 plugin: NodeAttestationPlugin::Psat,
             }),

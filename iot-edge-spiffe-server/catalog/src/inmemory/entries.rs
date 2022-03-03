@@ -103,6 +103,19 @@ impl Entries for Catalog {
         results
     }
 
+    async fn get_entry(
+        &self,
+        id: &str,
+    ) -> Result<RegistrationEntry, Box<dyn std::error::Error + Send>> {
+        let entries_list = self.entries_list.read();
+
+        let entry = entries_list
+            .get(id)
+            .ok_or_else(|| Box::new(Error::EntryNotFound(id.to_string())) as _)?;
+
+        Ok(entry.clone())
+    }
+
     async fn list_all(
         &self,
         page_token: Option<String>,
@@ -143,7 +156,7 @@ impl Entries for Catalog {
 mod tests {
 
     use core_objects::{
-        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, NodeSelector, SPIFFEID,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelector, SPIFFEID,
     };
     use matches::assert_matches;
 
@@ -159,7 +172,7 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: [
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
@@ -180,6 +193,24 @@ mod tests {
         let catalog = Catalog::new();
 
         (catalog, entry1, entry2)
+    }
+
+    #[tokio::test]
+    async fn get_entry_error_path() {
+        let (catalog, _entry1, _entry2) = init_entry_test();
+        let error = catalog.get_entry("dummy").await.unwrap_err();
+        let error = *error.downcast::<Error>().unwrap();
+
+        assert_matches!(error, Error::EntryNotFound(_));
+    }
+
+    #[tokio::test]
+    async fn get_entry_happy_path() {
+        let (catalog, entry1, entry2) = init_entry_test();
+        let entries = [entry1.clone(), entry2].to_vec();
+        catalog.batch_create(entries).await.unwrap();
+
+        catalog.get_entry(&entry1.id).await.unwrap();
     }
 
     #[tokio::test]

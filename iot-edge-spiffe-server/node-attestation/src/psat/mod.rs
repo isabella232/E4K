@@ -4,7 +4,7 @@ pub mod error;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use catalog::SelectorType;
+use catalog::NodeSelectorType;
 use core_objects::SPIFFEID;
 use k8s_openapi::api::{
     authentication::v1::{TokenReview, TokenReviewStatus},
@@ -196,46 +196,23 @@ impl NodeAttestation {
         let selector_info = self.get_selector_info(token_review_status).await?;
 
         let mut selectors = HashMap::new();
-        selectors.insert(
-            SelectorType::Cluster,
+        let selectors_vec = [
             NodeSelector::Cluster(selector_info.cluster_name.clone()),
-        );
-        selectors.insert(
-            SelectorType::AgentNameSpace,
             NodeSelector::AgentNameSpace(selector_info.name_space),
-        );
-        selectors.insert(
-            SelectorType::AgentServiceAccountName,
-            NodeSelector::AgentServiceAccountName(selector_info.service_account_name),
-        );
-        selectors.insert(
-            SelectorType::AgentPodName,
+            NodeSelector::AgentServiceAccount(selector_info.service_account_name),
             NodeSelector::AgentPodName(selector_info.pod_name),
-        );
-        selectors.insert(
-            SelectorType::AgentPodUID,
             NodeSelector::AgentPodUID(selector_info.pod_uid),
-        );
-        selectors.insert(
-            SelectorType::AgentNodeIP,
             NodeSelector::AgentNodeIP(selector_info.node_ip),
-        );
-        selectors.insert(
-            SelectorType::AgentNodeName,
             NodeSelector::AgentNodeName(selector_info.node_name),
-        );
-        selectors.insert(
-            SelectorType::AgentNodeUID,
             NodeSelector::AgentNodeUID(selector_info.node_uid.clone()),
-        );
-        selectors.insert(
-            SelectorType::AgentNodeLabels,
             NodeSelector::AgentNodeLabels(selector_info.node_labels),
-        );
-        selectors.insert(
-            SelectorType::AgentPodLabels,
             NodeSelector::AgentPodLabels(selector_info.pod_labels),
-        );
+        ]
+        .to_vec();
+
+        for selector in selectors_vec {
+            selectors.insert(NodeSelectorType::from(&selector), selector);
+        }
 
         let path = format!(
             "iotedge/spiffe-agent/k8s-psat/{}/{}",
@@ -272,6 +249,7 @@ impl NodeAttestationTrait for NodeAttestation {
 
 #[cfg(test)]
 mod tests {
+    use catalog::NodeSelectorType;
     use core_objects::CONFIG_DEFAULT_PATH;
     use matches::assert_matches;
     use mock_kube::{get_nodes, get_pods, get_token_review, get_token_review_status};
@@ -307,43 +285,49 @@ mod tests {
 
         assert_eq!(&resp.spiffe_id.to_string(), "iotedge/iotedge/spiffe-agent/k8s-psat/demo-cluster/14b57414-9516-11ec-b909-0242ac120002");
 
-        if let NodeSelector::Cluster(cluster_name) = &resp.selectors[&SelectorType::Cluster] {
+        if let NodeSelector::Cluster(cluster_name) = &resp.selectors[&NodeSelectorType::Cluster] {
             assert_eq!(cluster_name, "demo-cluster");
         }
         if let NodeSelector::AgentNameSpace(namespace) =
-            &resp.selectors[&SelectorType::AgentNameSpace]
+            &resp.selectors[&NodeSelectorType::AgentNameSpace]
         {
             assert_eq!(namespace, "namespace");
         }
-        if let NodeSelector::AgentServiceAccountName(service_account_name) =
-            &resp.selectors[&SelectorType::AgentServiceAccountName]
+        if let NodeSelector::AgentServiceAccount(service_account_name) =
+            &resp.selectors[&NodeSelectorType::AgentServiceAccount]
         {
             assert_eq!(service_account_name, "iotedge-spiffe-agent");
         }
-        if let NodeSelector::AgentPodName(pod_name) = &resp.selectors[&SelectorType::AgentPodName] {
+        if let NodeSelector::AgentPodName(pod_name) =
+            &resp.selectors[&NodeSelectorType::AgentPodName]
+        {
             assert_eq!(pod_name, "pod_name");
         }
-        if let NodeSelector::AgentPodUID(pod_uid) = &resp.selectors[&SelectorType::AgentPodUID] {
+        if let NodeSelector::AgentPodUID(pod_uid) = &resp.selectors[&NodeSelectorType::AgentPodUID]
+        {
             assert_eq!(pod_uid, "75dbabec-9510-11ec-b909-0242ac120002");
         }
-        if let NodeSelector::AgentNodeIP(node_ip) = &resp.selectors[&SelectorType::AgentNodeIP] {
+        if let NodeSelector::AgentNodeIP(node_ip) = &resp.selectors[&NodeSelectorType::AgentNodeIP]
+        {
             assert_eq!(node_ip, "127.0.0.1");
         }
         if let NodeSelector::AgentNodeName(node_name) =
-            &resp.selectors[&SelectorType::AgentNodeName]
+            &resp.selectors[&NodeSelectorType::AgentNodeName]
         {
             assert_eq!(node_name, "node_name");
         }
-        if let NodeSelector::AgentNodeUID(node_uid) = &resp.selectors[&SelectorType::AgentNodeUID] {
+        if let NodeSelector::AgentNodeUID(node_uid) =
+            &resp.selectors[&NodeSelectorType::AgentNodeUID]
+        {
             assert_eq!(node_uid, "14b57414-9516-11ec-b909-0242ac120002");
         }
         if let NodeSelector::AgentPodLabels(pod_labels) =
-            &resp.selectors[&SelectorType::AgentPodLabels]
+            &resp.selectors[&NodeSelectorType::AgentPodLabels]
         {
             assert_eq!(pod_labels["pod-name"], "pod");
         }
         if let NodeSelector::AgentNodeLabels(node_labels) =
-            &resp.selectors[&SelectorType::AgentNodeLabels]
+            &resp.selectors[&NodeSelectorType::AgentNodeLabels]
         {
             assert_eq!(node_labels["node-name"], "node");
         }

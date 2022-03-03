@@ -766,6 +766,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "identity-matcher"
+version = "0.1.0"
+dependencies = [
+ "catalog",
+ "core-objects",
+ "log",
+ "matches",
+ "server-config",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1796,6 +1809,7 @@ dependencies = [
  "http",
  "http-common 0.1.0 (git+https://github.com/Azure/iot-identity-service)",
  "hyper",
+ "identity-matcher",
  "key-manager",
  "key-store",
  "log",

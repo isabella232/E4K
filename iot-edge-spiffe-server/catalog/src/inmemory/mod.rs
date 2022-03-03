@@ -9,14 +9,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Catalog as CatalogTrait, SelectorType};
+use crate::{Catalog as CatalogTrait, NodeSelectorType};
 use core_objects::{NodeSelector, RegistrationEntry, JWK};
 use parking_lot::{const_rwlock, RwLock};
 
 pub struct Catalog {
     entries_list: Arc<RwLock<BTreeMap<String, RegistrationEntry>>>,
     jwt_trust_domain: Arc<RwLock<JWTTrustDomain>>,
-    node_selector_store: Arc<RwLock<HashMap<String, HashMap<SelectorType, NodeSelector>>>>,
+    node_selector_store: Arc<RwLock<HashMap<String, HashMap<NodeSelectorType, NodeSelector>>>>,
 }
 
 pub struct JWTTrustDomain {

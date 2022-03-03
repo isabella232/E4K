@@ -20,6 +20,7 @@ url = "2"
 catalog = { path = "../catalog" }
 server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }
+identity-matcher = { path = "../identity-matcher" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
 node-attestation-server = { path = "../node-attestation"  }

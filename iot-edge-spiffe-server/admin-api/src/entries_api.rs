@@ -89,7 +89,7 @@ mod tests {
     use std::sync::Arc;
 
     use core_objects::{
-        AttestationConfig, NodeAttestationConfig, NodeAttestationPlugin, NodeSelector,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelector,
         RegistrationEntry, SPIFFEID,
     };
 
@@ -110,7 +110,7 @@ mod tests {
             id: String::from("id"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: [
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
@@ -242,7 +242,7 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: [
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
@@ -307,7 +307,7 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: [
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
@@ -347,7 +347,7 @@ mod tests {
             id: String::from("id2"),
             other_identities: Vec::new(),
             spiffe_id,
-            attestation_config: AttestationConfig::Node(NodeAttestationConfig {
+            attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: [
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
