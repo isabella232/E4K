@@ -11,14 +11,17 @@
 )]
 
 mod error;
-
-use std::error::Error as StdError;
-
 use agent_config::Config;
 use error::Error;
+use futures_util::TryFutureExt;
 use log::{error, info};
 use node_attestation_agent::NodeAttestatorFactory;
-use server_client::ServerClientFactory;
+use spiffe_server_client::ServerClientFactory;
+use std::error::Error as StdError;
+use tokio::{fs, net::UnixListener};
+use tonic::transport::Server;
+use workload_api::spiffe_workload_api_server::SpiffeWorkloadApiServer;
+use workload_api_server::{unix_stream, WorkloadAPIServer};
 
 const CONFIG_DEFAULT_PATH: &str = "/mnt/config/Config.toml";
 
@@ -46,12 +49,30 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     let server_api_client =
         ServerClientFactory::get(&config.server_config).map_err(Error::CreatingServerclient)?;
-    let node_attestation =
+    let _node_attestation =
         NodeAttestatorFactory::get(&config.node_attestation_config, server_api_client.clone());
 
-    // Test code here
-    let spiffe_id = node_attestation.attest_agent().await.unwrap();
-    info!("Got spiffe id! {:?}", spiffe_id);
+    let uds_stream = {
+        let _result = fs::remove_file(config.socket_path.clone()).await;
+        let uds = UnixListener::bind(config.socket_path)?;
+
+        async_stream::stream! {
+            loop {
+                let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+
+                yield item;
+            }
+        }
+    };
+
+    info!("Starting workload API server");
+
+    Server::builder()
+        .add_service(SpiffeWorkloadApiServer::new(WorkloadAPIServer::new(
+            server_api_client,
+        )))
+        .serve_with_incoming(uds_stream)
+        .await?;
 
     Ok(())
 }

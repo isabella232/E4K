@@ -136,7 +136,7 @@ pub trait TrustBundleStore: Sync + Send {
     /// ## Returns
     /// * `Ok(())` - Successfully added the key
     /// * `Err(e)` - an error occurred while adding the key
-    async fn add_jwt_key(
+    async fn add_jwk(
         &self,
         trust_domain: &str,
         jwk: JWK,
@@ -151,7 +151,7 @@ pub trait TrustBundleStore: Sync + Send {
     /// ## Returns
     /// * `Ok(())` - Successfully deleted the key
     /// * `Err(e)` - an error occurred while deleting the key
-    async fn remove_jwt_key(
+    async fn remove_jwk(
         &self,
         trust_domain: &str,
         kid: &str,
@@ -165,7 +165,7 @@ pub trait TrustBundleStore: Sync + Send {
     /// ## Returns
     /// * `Ok((JWK, usize))` - Array of JWK and the version number
     /// * `Err(e)` - an error occurred while getting the keys for the give trust domain    
-    async fn get_jwt_keys(
+    async fn get_jwk(
         &self,
         trust_domain: &str,
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>>;

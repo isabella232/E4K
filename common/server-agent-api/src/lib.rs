@@ -66,7 +66,7 @@ pub mod create_workload_jwt {
 pub mod get_trust_bundle {
     use core_objects::TrustBundle;
 
-    pub struct Request {
+    pub struct Params {
         pub jwt_keys: bool,
         pub x509_cas: bool,
     }

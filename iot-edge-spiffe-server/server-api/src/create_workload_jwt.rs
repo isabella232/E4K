@@ -37,7 +37,7 @@ impl Api {
 
     pub async fn get_trust_bundle(
         &self,
-        params: get_trust_bundle::Request,
+        params: get_trust_bundle::Params,
     ) -> Result<get_trust_bundle::Response, Error> {
         let trust_bundle = self
             .trust_bundle_builder
@@ -213,7 +213,7 @@ mod tests {
     async fn get_trust_bundle_happy_path_test() {
         let (api, _entries, _key_manager, config) = init().await;
 
-        let req = get_trust_bundle::Request {
+        let req = get_trust_bundle::Params {
             jwt_keys: true,
             x509_cas: true,
         };
@@ -222,8 +222,11 @@ mod tests {
         let trust_bundle = response.trust_bundle;
 
         assert_eq!(config.trust_domain, trust_bundle.trust_domain);
-        assert_eq!(1, trust_bundle.jwt_keys.len());
-        assert_eq!(config.trust_bundle.refresh_hint, trust_bundle.refresh_hint);
-        assert_eq!(1, trust_bundle.sequence_number);
+        assert_eq!(1, trust_bundle.jwt_key_set.keys.len());
+        assert_eq!(
+            config.trust_bundle.refresh_hint,
+            trust_bundle.jwt_key_set.spiffe_refresh_hint
+        );
+        assert_eq!(1, trust_bundle.jwt_key_set.spiffe_sequence_number);
     }
 }

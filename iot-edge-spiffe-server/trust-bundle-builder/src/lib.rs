@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use catalog::Catalog;
-use core_objects::TrustBundle;
+use core_objects::{JWKSet, TrustBundle};
 use error::Error;
 use server_config::Config;
 
@@ -42,19 +42,29 @@ impl TrustBundleBuilder {
     ) -> Result<TrustBundle, Error> {
         let (jwt_key, version) = if jwt_keys {
             self.catalog
-                .get_jwt_keys(&self.trust_domain)
+                .get_jwk(&self.trust_domain)
                 .await
                 .map_err(Error::CatalogGetKeys)?
         } else {
             (Vec::new(), 0)
         };
 
+        let jwt_key_set = JWKSet {
+            keys: jwt_key,
+            spiffe_refresh_hint: self.refresh_hint,
+            spiffe_sequence_number: version as u64,
+        };
+
+        let x509_key_set = JWKSet {
+            keys: Vec::new(),
+            spiffe_refresh_hint: self.refresh_hint,
+            spiffe_sequence_number: version as u64,
+        };
+
         Ok(TrustBundle {
             trust_domain: self.trust_domain.to_string(),
-            jwt_keys: jwt_key,
-            x509_cas: Vec::new(),
-            refresh_hint: self.refresh_hint,
-            sequence_number: version as u64,
+            jwt_key_set,
+            x509_key_set,
         })
     }
 }
@@ -110,17 +120,20 @@ mod tests {
             .await
             .unwrap();
 
-        let jwk = &trust_bundle.jwt_keys[0];
+        let jwk = &trust_bundle.jwt_key_set.keys[0];
 
-        assert_eq!(1, trust_bundle.jwt_keys.len());
+        assert_eq!(1, trust_bundle.jwt_key_set.keys.len());
         assert_eq!(config.trust_domain, trust_bundle.trust_domain);
-        assert_eq!(config.trust_bundle.refresh_hint, trust_bundle.refresh_hint);
-        assert_eq!(id, jwk.key_id);
+        assert_eq!(
+            config.trust_bundle.refresh_hint,
+            trust_bundle.jwt_key_set.spiffe_refresh_hint
+        );
+        assert_eq!(id, jwk.kid);
 
         let trust_bundle = trust_bundle_builder
             .build_trust_bundle(false, false)
             .await
             .unwrap();
-        assert_eq!(0, trust_bundle.jwt_keys.len());
+        assert_eq!(0, trust_bundle.jwt_key_set.keys.len());
     }
 }

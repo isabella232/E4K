@@ -1,4 +1,4 @@
-socket_path = "api.sock"
+socket_path = "/run/iotedge/sockets/workloadapi.sock"
 trust_domain = "iotedge"
 
 [server-config]

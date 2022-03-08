@@ -9,7 +9,7 @@ edition = "2021"
 async-trait = "0.1"
 futures-util = "0.3"
 parking_lot = "0.12.0"
-thiserror = "1.0.24"
+thiserror = "1.0"
 
 server-config = { path = "../config" }
 core-objects = { path = "../../common/core-objects" }

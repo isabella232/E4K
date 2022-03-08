@@ -8,24 +8,24 @@ use super::{error::Error, Catalog};
 
 #[async_trait::async_trait]
 impl TrustBundleStore for Catalog {
-    async fn add_jwt_key(
+    async fn add_jwk(
         &self,
         _trust_domain: &str,
         jwk: JWK,
     ) -> Result<(), Box<dyn std::error::Error + Send>> {
         let mut jwt_trust_domain = self.jwt_trust_domain.write();
 
-        if jwt_trust_domain.store.contains_key(&jwk.key_id) {
-            return Err(Box::new(Error::DuplicatedKey(jwk.key_id)));
+        if jwt_trust_domain.store.contains_key(&jwk.kid) {
+            return Err(Box::new(Error::DuplicatedKey(jwk.kid)));
         }
 
         jwt_trust_domain.version += 1;
-        jwt_trust_domain.store.insert(jwk.key_id.clone(), jwk);
+        jwt_trust_domain.store.insert(jwk.kid.clone(), jwk);
 
         Ok(())
     }
 
-    async fn remove_jwt_key(
+    async fn remove_jwk(
         &self,
         _trust_domain: &str,
         kid: &str,
@@ -43,7 +43,7 @@ impl TrustBundleStore for Catalog {
         Ok(())
     }
 
-    async fn get_jwt_keys(
+    async fn get_jwk(
         &self,
         _trust_domain: &str,
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>> {
@@ -62,52 +62,44 @@ impl TrustBundleStore for Catalog {
 
 #[cfg(test)]
 mod tests {
-    use openssl::{ec, nid, pkey};
+    use core_objects::{Crv, KeyUse, Kty};
 
     use matches::assert_matches;
 
     use super::*;
 
-    fn init_key_test() -> (Catalog, Vec<u8>) {
-        let mut group = ec::EcGroup::from_curve_name(nid::Nid::X9_62_PRIME256V1).unwrap();
-        group.set_asn1_flag(ec::Asn1Flag::NAMED_CURVE);
-        let ec_key = ec::EcKey::generate(&group).unwrap();
-        let public_key = pkey::PKey::from_ec_key(ec_key)
-            .unwrap()
-            .public_key_to_der()
-            .unwrap();
-
+    #[tokio::test]
+    async fn add_jwk_test_happy_path() {
         let catalog = Catalog::new();
 
-        (catalog, public_key)
+        let jwk = JWK {
+            kid: "my_key".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
+        };
+
+        catalog.add_jwk("dummy", jwk).await.unwrap();
     }
 
     #[tokio::test]
-    async fn add_jwt_key_test_happy_path() {
-        let (catalog, public_key) = init_key_test();
+    async fn add_jwk_test_duplicate_entry() {
+        let catalog = Catalog::new();
 
         let jwk = JWK {
-            public_key,
-            key_id: "my_key".to_string(),
-            expiry: 0,
+            kid: "my_key".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
         };
 
-        catalog.add_jwt_key("dummy", jwk).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn add_jwt_key_test_duplicate_entry() {
-        let (catalog, public_key) = init_key_test();
-
-        let jwk = JWK {
-            public_key,
-            key_id: "my_key".to_string(),
-            expiry: 0,
-        };
-
-        let _res = catalog.add_jwt_key("dummy", jwk.clone()).await.unwrap();
+        let _res = catalog.add_jwk("dummy", jwk.clone()).await.unwrap();
         let res = *catalog
-            .add_jwt_key("dummy", jwk)
+            .add_jwk("dummy", jwk)
             .await
             .unwrap_err()
             .downcast::<Error>()
@@ -117,32 +109,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn remove_jwt_key_test_happy_path() {
-        let (catalog, public_key) = init_key_test();
+    async fn remove_jwk_test_happy_path() {
+        let catalog = Catalog::new();
 
         let jwk = JWK {
-            public_key,
-            key_id: "my_key".to_string(),
-            expiry: 0,
+            kid: "my_key".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
         };
 
-        catalog.add_jwt_key("dummy", jwk.clone()).await.unwrap();
-        catalog.remove_jwt_key("dummy", "my_key").await.unwrap();
+        catalog.add_jwk("dummy", jwk.clone()).await.unwrap();
+        catalog.remove_jwk("dummy", "my_key").await.unwrap();
     }
 
     #[tokio::test]
-    async fn remove_jwt_key_test_entry_not_exist() {
-        let (catalog, public_key) = init_key_test();
+    async fn remove_jwk_test_entry_not_exist() {
+        let catalog = Catalog::new();
 
         let jwk = JWK {
-            public_key,
-            key_id: "my_key".to_string(),
-            expiry: 0,
+            kid: "my_key".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
         };
 
-        catalog.add_jwt_key("dummy", jwk).await.unwrap();
+        catalog.add_jwk("dummy", jwk).await.unwrap();
         let res = *catalog
-            .remove_jwt_key("dummy", "another_key")
+            .remove_jwk("dummy", "another_key")
             .await
             .unwrap_err()
             .downcast::<Error>()
@@ -153,24 +151,29 @@ mod tests {
 
     #[tokio::test]
     async fn get_keys_from_jwt_trust_domain_store_test_happy_path() {
-        let (catalog, public_key) = init_key_test();
+        let catalog = Catalog::new();
 
         let jwk = JWK {
-            public_key: public_key.clone(),
-            key_id: "my_key".to_string(),
-            expiry: 0,
+            kid: "my_key".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
         };
-
-        catalog.add_jwt_key("dummy", jwk.clone()).await.unwrap();
+        catalog.add_jwk("dummy", jwk.clone()).await.unwrap();
 
         let jwk = JWK {
-            public_key,
-            key_id: "my_key2".to_string(),
-            expiry: 0,
+            kid: "my_key2".to_string(),
+            x: "abc".to_string(),
+            y: "abc".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            key_use: KeyUse::JWTSVID,
         };
-        catalog.add_jwt_key("dummy", jwk).await.unwrap();
+        catalog.add_jwk("dummy", jwk).await.unwrap();
 
-        let (keys, version) = catalog.get_jwt_keys("dummy").await.unwrap();
+        let (keys, version) = catalog.get_jwk("dummy").await.unwrap();
 
         assert_eq!(keys.len(), 2);
         assert_eq!(version, 2);

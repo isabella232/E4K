@@ -19,7 +19,7 @@ use std::sync::Arc;
 use mockall::automock;
 
 use agent_config::ServerConfig;
-use server_agent_api::{attest_agent, create_workload_jwt};
+use server_agent_api::{attest_agent, create_workload_jwt, get_trust_bundle};
 
 pub struct ServerClientFactory {}
 
@@ -45,4 +45,9 @@ pub trait Client: Sync + Send {
         &self,
         token: attest_agent::Auth,
     ) -> Result<attest_agent::Response, Box<dyn std::error::Error + Send>>;
+
+    async fn get_trust_bundle(
+        &self,
+        params: get_trust_bundle::Params,
+    ) -> Result<get_trust_bundle::Response, Box<dyn std::error::Error + Send>>;
 }

@@ -94,9 +94,10 @@ impl JWTSVIDValidator {
             .ok_or_else(|| Error::InvalidAudience(audience.clone()))?;
 
         let jwk = trust_bundle
-            .jwt_keys
+            .jwt_key_set
+            .keys
             .iter()
-            .find(|jwk| jwk.key_id == header.key_id)
+            .find(|jwk| jwk.kid == header.key_id)
             .ok_or_else(|| Error::PublicKeyNotInTrustBundle(header.key_id.clone()))?;
 
         // Check public key is not expired.

@@ -153,6 +153,25 @@ pub enum KeyType {
     PS512,
 }
 
+impl From<KeyType> for (Kty, Crv) {
+    fn from(key_type: KeyType) -> (Kty, Crv) {
+        match key_type {
+            KeyType::ES256 => (Kty::EC, Crv::P256),
+            KeyType::ES384 => (Kty::EC, Crv::P384),
+            KeyType::ES512 => (Kty::EC, Crv::P521),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+pub enum KeyUse {
+    #[serde(rename = "x509-svid")]
+    X509SVID,
+    #[serde(rename = "jwt-svid")]
+    JWTSVID,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct JWTSVIDCompact {
     pub token: String,
@@ -164,17 +183,44 @@ pub struct JWTSVIDCompact {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TrustBundle {
     pub trust_domain: String,
-    pub jwt_keys: Vec<JWK>,
-    pub x509_cas: Vec<Vec<u8>>,
-    pub refresh_hint: u64,
-    pub sequence_number: u64,
+    pub jwt_key_set: JWKSet,
+    pub x509_key_set: JWKSet,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub struct JWKSet {
+    pub keys: Vec<JWK>,
+    pub spiffe_refresh_hint: u64,
+    pub spiffe_sequence_number: u64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct JWK {
-    pub public_key: Vec<u8>,
-    pub key_id: String,
-    pub expiry: u64,
+    pub x: String,
+    pub y: String,
+    pub kty: Kty,
+    pub crv: Crv,
+    pub kid: String,
+    #[serde(rename = "use")]
+    pub key_use: KeyUse,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub enum Kty {
+    EC,
+    RSA,
+    #[serde(rename = "oct")]
+    Oct,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub enum Crv {
+    #[serde(rename = "P-256")]
+    P256,
+    #[serde(rename = "P-384")]
+    P384,
+    #[serde(rename = "P-521")]
+    P521,
 }
 
 #[must_use]

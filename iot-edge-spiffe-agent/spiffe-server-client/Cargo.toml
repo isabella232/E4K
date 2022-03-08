@@ -1,5 +1,5 @@
 [package]
-name = "server-client"
+name = "spiffe-server-client"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 license = "MIT"
@@ -12,7 +12,7 @@ mockall = {version = "0.11.0", optional = true}
 hyper = "0.14"
 serde = "1"
 serde_json = "1"
-thiserror = "1.0.24"
+thiserror = "1.0"
 url = "2"
 
 

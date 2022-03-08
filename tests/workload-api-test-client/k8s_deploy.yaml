@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genericnode
+  labels:
+    app: genericnode
+spec:
+  selector:
+    matchLabels:
+      app: genericnode
+  template:
+    metadata:
+      labels:
+        app: genericnode
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: genericnode
+          image: ubuntu
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          command: ["sleep"]
+          args: ["1000000000"]
+          volumeMounts:
+            - name: working-repo
+              mountPath: /debug          
+            - name: iotedge-spiffe-agent-socket
+              mountPath: /run/iotedge/sockets/           
+      volumes:
+        - name: working-repo
+          hostPath:
+            path: /home/azureuser/iot-k8s-identities/target/debug      
+        - name: iotedge-spiffe-agent-socket
+          hostPath:
+            path: /run/iotedge/sockets/
+            type: DirectoryOrCreate

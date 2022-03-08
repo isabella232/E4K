@@ -8,7 +8,7 @@ use agent_config::ServerConfig;
 use core_objects::{JWTSVIDCompact, SPIFFEID};
 use error::Error;
 use http_common::{Connector, ErrorBody, HttpRequest};
-use server_agent_api::{attest_agent, create_workload_jwt, ApiVersion};
+use server_agent_api::{attest_agent, create_workload_jwt, get_trust_bundle, ApiVersion};
 use url::Url;
 
 pub struct Client {
@@ -19,6 +19,11 @@ pub struct Client {
 #[must_use]
 pub fn attest_agent_uri() -> String {
     format!("attest-agent?api-version={}", ApiVersion::V2022_06_01)
+}
+
+#[must_use]
+pub fn get_trust_bundle_uri() -> String {
+    format!("trust-bundle?api-version={}", ApiVersion::V2022_06_01)
 }
 
 impl Client {
@@ -56,6 +61,29 @@ impl ClientTrait for Client {
                 issued_at: 0,
             },
         })
+    }
+
+    async fn get_trust_bundle(
+        &self,
+        params: get_trust_bundle::Params,
+    ) -> Result<get_trust_bundle::Response, Box<dyn std::error::Error + Send>> {
+        let address_url = format!(
+            "{}{}&jwt_keys={}&x509_cas={}",
+            self.address_url,
+            &get_trust_bundle_uri(),
+            params.jwt_keys,
+            params.x509_cas,
+        );
+        let request: HttpRequest<(), _> = HttpRequest::get(self.connector.clone(), &address_url);
+
+        let response = request
+            .json_response()
+            .await
+            .map_err(|err| Box::new(Error::GetTrustBundle(err)) as _)?;
+
+        response
+            .parse::<get_trust_bundle::Response, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])
+            .map_err(|err| Box::new(Error::DeserializingGetTrustBundleResponse(err)) as _)
     }
 
     async fn attest_agent(

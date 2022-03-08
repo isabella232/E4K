@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use agent_config::NodeAttestationConfig;
 use core_objects::JWTSVIDCompact;
-use server_client::Client;
+use spiffe_server_client::Client;
 
 pub struct NodeAttestatorFactory {}
 

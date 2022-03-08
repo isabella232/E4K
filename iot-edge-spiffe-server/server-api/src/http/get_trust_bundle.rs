@@ -43,17 +43,11 @@ impl server::Route for Route {
         let mut jwt_keys: Option<String> = None;
 
         for q in query.iter() {
-            x509_cas = if q.0 == "x509_cas" {
-                Some(q.1.to_string())
-            } else {
-                None
-            };
-
-            jwt_keys = if q.0 == "jwt_keys" {
-                Some(q.1.to_string())
-            } else {
-                None
-            };
+            match &q.0 as &str {
+                "x509_cas" => x509_cas = Some(q.1.to_string()),
+                "jwt_keys" => jwt_keys = Some(q.1.to_string()),
+                _ => (),
+            }
         }
 
         Some(Route {
@@ -64,6 +58,11 @@ impl server::Route for Route {
     }
 
     async fn get(self) -> server::RouteResponse {
+        println!(
+            "trustbundle request jwt {:?}, cas {:?}",
+            self.jwt_keys, self.x509_cas
+        );
+
         let jwt_keys = if let Some(jwt_keys) = self.jwt_keys {
             jwt_keys.parse::<bool>().map_err(|_| server::Error {
                 status_code: StatusCode::BAD_REQUEST,
@@ -82,7 +81,7 @@ impl server::Route for Route {
             false
         };
 
-        let params = get_trust_bundle::Request { jwt_keys, x509_cas };
+        let params = get_trust_bundle::Params { jwt_keys, x509_cas };
 
         let res = self.api.get_trust_bundle(params).await;
         let res = match res {

@@ -30,14 +30,20 @@ spec:
             - name: config
               mountPath: /mnt/config 
             - name: iotedge-spiffe-token
-              mountPath: /var/run/secrets/tokens   
+              mountPath: /var/run/secrets/tokens 
+            - name: iotedge-spiffe-agent-socket
+              mountPath: /run/iotedge/sockets/                   
       volumes:
         - name: working-repo
           hostPath:
-            path: /home/azureuser/iot-k8s-identities/target/x86_64-unknown-linux-musl/debug
+            path: /home/azureuser/iot-k8s-identities/target/x86_64-unknown-linux-musl/debug          
         - name: config
           configMap:
             name: iotedge-spiffe-agent 
+        - name: iotedge-spiffe-agent-socket
+          hostPath:
+            path: /run/iotedge/sockets/
+            type: DirectoryOrCreate            
         - name: iotedge-spiffe-token
           projected:
             sources:

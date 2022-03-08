@@ -4,6 +4,10 @@ members = [
 	"identity-manager",
 	"identity-manager/spiffe-server-admin-client",
 	"tests/integration-tests",
+	"tests/workload-api-test-client",
+	"common/core-objects",
+	"common/server-admin-api",
+	"common/server-agent-api",		
 	"iot-edge-spiffe-server/admin-api",	
 	"iot-edge-spiffe-server/catalog",
 	"iot-edge-spiffe-server/config",	
@@ -18,8 +22,13 @@ members = [
 	"iot-edge-spiffe-agent/agentd",	
 	"iot-edge-spiffe-agent/config",	
 	"iot-edge-spiffe-agent/node-attestation",
-	"iot-edge-spiffe-agent/server-client",
+	"iot-edge-spiffe-agent/spiffe-server-client",
 ]
+# Excluding auto generated code.
+exclude = [
+	"common/workload-api",
+]
+
 
 [profile.dev]
 panic = "abort"

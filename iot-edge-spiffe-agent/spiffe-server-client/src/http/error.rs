@@ -14,8 +14,12 @@ pub enum Error {
     Connector(String),
     #[error("Error while doing agent attestation with server {0}")]
     AttestAgent(io::Error),
+    #[error("Error while getting trust bundle from server {0}")]
+    GetTrustBundle(io::Error),
     #[error("Error while deserializing response from attest agent request {0}")]
     DeserializingAttestAgentResponse(io::Error),
+    #[error("Error while deserializing response from get_trust_bundle request {0}")]
+    DeserializingGetTrustBundleResponse(io::Error),
 }
 
 impl From<ConnectorError> for Error {

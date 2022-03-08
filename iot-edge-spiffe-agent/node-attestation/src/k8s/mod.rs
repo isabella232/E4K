@@ -7,7 +7,7 @@ use std::{fs, path, sync::Arc};
 use agent_config::NodeAttestationConfigK8s;
 use core_objects::JWTSVIDCompact;
 use server_agent_api::attest_agent;
-use server_client::Client;
+use spiffe_server_client::Client;
 
 use crate::NodeAttestation as NodeAttestationTrait;
 
@@ -57,7 +57,7 @@ mod tests {
     use core_objects::{JWTSVIDCompact, AGENT_DEFAULT_CONFIG_PATH, SPIFFEID};
     use matches::assert_matches;
     use server_agent_api::attest_agent;
-    use server_client::MockClient;
+    use spiffe_server_client::MockClient;
     use tempdir::TempDir;
 
     fn init_tests() -> (Config, String) {

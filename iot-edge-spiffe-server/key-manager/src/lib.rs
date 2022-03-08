@@ -13,7 +13,7 @@
 mod error;
 
 use catalog::Catalog;
-use core_objects::{get_epoch_time, KeyType, JWK};
+use core_objects::{get_epoch_time, KeyType, KeyUse, JWK};
 use error::Error;
 use key_store::KeyStore;
 use log::info;
@@ -80,9 +80,7 @@ impl KeyManager {
             slots: RwLock::new(slots),
         };
 
-        key_manager
-            .create_key_and_add_to_catalog(&id, expiry)
-            .await?;
+        key_manager.create_key_and_add_to_catalog(&id).await?;
 
         Ok(key_manager)
     }
@@ -108,14 +106,13 @@ impl KeyManager {
         if slots.next_jwt_key.is_none() && (current_time > threshold) {
             info!("Key manager: Filling next_key slot");
             let id = Uuid::new_v4().to_string();
-            let expiry = current_time + self.jwt_key_ttl;
 
             slots.next_jwt_key = Some(JWTKeyEntry {
                 id: id.clone(),
                 expiry: current_time + self.jwt_key_ttl,
             });
 
-            self.create_key_and_add_to_catalog(&id, expiry).await?;
+            self.create_key_and_add_to_catalog(&id).await?;
         }
 
         let threshold = slots.current_jwt_key.expiry - self.jwt_key_ttl / ROTATE_CURRENT_KEY_MARGIN;
@@ -130,8 +127,7 @@ impl KeyManager {
             // This should never happen, the key should have expired a long time ago. But we clean up nonetheless and raise an error.
             if let Some(jwt_key) = &slots.previous_jwt_key {
                 log::error!("Request of key current slot deprecation while key in previous slot has not expired yet");
-                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
-                    .await?;
+                self.remove_jwk_from_catalog_and_store(&jwt_key.id).await?;
             }
             info!("Key manager: Rotating keys");
             slots.previous_jwt_key = Some(slots.current_jwt_key.clone());
@@ -143,8 +139,7 @@ impl KeyManager {
         if let Some(jwt_key) = &slots.previous_jwt_key {
             if current_time > jwt_key.expiry {
                 info!("Key manager: Removing old key");
-                self.remove_jwt_key_from_catalog_and_store(&jwt_key.id)
-                    .await?;
+                self.remove_jwk_from_catalog_and_store(&jwt_key.id).await?;
                 slots.previous_jwt_key = None;
             }
         }
@@ -152,7 +147,7 @@ impl KeyManager {
         Ok(())
     }
 
-    async fn remove_jwt_key_from_catalog_and_store(&self, id: &str) -> Result<(), Error> {
+    async fn remove_jwk_from_catalog_and_store(&self, id: &str) -> Result<(), Error> {
         // Delete the old private key
         self.key_store
             .delete_key_pair(id)
@@ -161,28 +156,44 @@ impl KeyManager {
 
         // Remove from catalog
         self.catalog
-            .remove_jwt_key(&self.trust_domain, id)
+            .remove_jwk(&self.trust_domain, id)
             .await
             .map_err(|err| Error::DeletingPublicKey(err))
     }
 
-    async fn create_key_and_add_to_catalog(&self, id: &str, expiry: u64) -> Result<(), Error> {
-        let public_key = self
+    async fn create_key_and_add_to_catalog(&self, id: &str) -> Result<(), Error> {
+        let mut x = openssl::bn::BigNum::new().map_err(Error::BigNumGeneration)?;
+        let mut y = openssl::bn::BigNum::new().map_err(Error::BigNumGeneration)?;
+        let mut ctx = openssl::bn::BigNumContext::new().map_err(Error::BigNumGeneration)?;
+        let ec_key = self
             .key_store
             .create_key_pair_if_not_exists(id, self.jwt_key_type)
             .await
             .map_err(|err| Error::CreatingNewKey(err))?
-            .public_key_to_der()
-            .map_err(|err| Error::ConvertingKey(Box::new(err)))?;
+            .ec_key()
+            .map_err(Error::ECkeyConvertion)?;
+
+        let group = ec_key.group();
+        ec_key
+            .public_key()
+            .affine_coordinates_gfp(group, &mut x, &mut y, &mut ctx)
+            .map_err(Error::GenerateXandY)?;
+
+        let x_b64 = base64::encode_config(x.to_string(), base64::STANDARD_NO_PAD);
+        let y_b64 = base64::encode_config(y.to_string(), base64::STANDARD_NO_PAD);
+        let (kty, crv) = self.jwt_key_type.into();
 
         let jwk = JWK {
-            public_key,
-            key_id: id.to_string(),
-            expiry,
+            x: x_b64,
+            y: y_b64,
+            kty,
+            crv,
+            kid: id.to_string(),
+            key_use: KeyUse::JWTSVID,
         };
 
         self.catalog
-            .add_jwt_key(&self.trust_domain, jwk)
+            .add_jwk(&self.trust_domain, jwk)
             .await
             .map_err(|err| Error::AddingPulicKey(err))
     }
@@ -224,7 +235,7 @@ mod tests {
         let manager = init().await;
 
         // Check the public key has been uploaded
-        let (res, version) = manager.catalog.get_jwt_keys("dummy").await.unwrap();
+        let (res, version) = manager.catalog.get_jwk("dummy").await.unwrap();
         assert_eq!(res.len(), 1);
         assert_eq!(version, 1);
 
@@ -238,17 +249,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn remove_jwt_key_from_catalog_and_store_test_happy_path() {
+    async fn remove_jwk_from_catalog_and_store_test_happy_path() {
         let manager = init().await;
 
         let current_jwt_key = &manager.slots.write().await.current_jwt_key;
         manager
-            .remove_jwt_key_from_catalog_and_store(&current_jwt_key.id)
+            .remove_jwk_from_catalog_and_store(&current_jwt_key.id)
             .await
             .unwrap();
 
         // Check it was removed from catalog
-        let (res, version) = manager.catalog.get_jwt_keys("dummy").await.unwrap();
+        let (res, version) = manager.catalog.get_jwk("dummy").await.unwrap();
         assert_eq!(res.len(), 0);
         assert_eq!(version, 2);
 
@@ -314,7 +325,7 @@ mod tests {
         let current_jwt_key_id = slots.current_jwt_key.id.clone();
 
         // Now there should be 2 keys. One in the current slot, the other in the next.
-        let (res, _version) = catalog.get_jwt_keys("dummy").await.unwrap();
+        let (res, _version) = catalog.get_jwk("dummy").await.unwrap();
         assert_eq!(res.len(), 2);
 
         // Check private key is in the store
@@ -359,7 +370,7 @@ mod tests {
         assert!(prev_jwt_key.is_none());
 
         // Now there should be only 1 keys. One in the current slot
-        let (res, _version) = catalog.get_jwt_keys("dummy").await.unwrap();
+        let (res, _version) = catalog.get_jwk("dummy").await.unwrap();
         assert_eq!(res.len(), 1);
 
         // Check private key is in the store
