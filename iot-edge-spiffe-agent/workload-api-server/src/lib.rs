@@ -16,15 +16,19 @@ pub mod unix_stream;
 use core::pin::Pin;
 use error::Error;
 use futures_util::Stream;
-use server_agent_api::get_trust_bundle;
+use log::info;
+use server_agent_api::{create_workload_jwt, get_trust_bundle};
 use spiffe_server_client::Client;
 use std::{collections::HashMap, sync::Arc};
 use tonic::{Request, Response};
 use workload_api::{
-    spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtBundlesResponse,
+    spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtBundlesResponse, Jwtsvid,
     JwtsvidRequest, JwtsvidResponse, ValidateJwtsvidRequest, ValidateJwtsvidResponse,
     X509svidRequest, X509svidResponse,
 };
+use workload_attestation::WorkloadAttestation;
+
+use crate::unix_stream::UdsConnectInfo;
 
 type X509ResponseStream =
     Pin<Box<dyn Stream<Item = Result<X509svidResponse, tonic::Status>> + Send>>;
@@ -33,14 +37,52 @@ type JWTResponseStream =
 
 pub struct WorkloadAPIServer {
     spiffe_server_client: Arc<dyn Client + Sync + Send>,
+    workload_attestation: Arc<dyn WorkloadAttestation + Sync + Send>,
 }
 
 impl WorkloadAPIServer {
     #[must_use]
-    pub fn new(spiffe_server_client: Arc<dyn Client + Sync + Send>) -> Self {
+    pub fn new(
+        spiffe_server_client: Arc<dyn Client + Sync + Send>,
+        workload_attestation: Arc<dyn WorkloadAttestation + Sync + Send>,
+    ) -> Self {
         Self {
             spiffe_server_client,
+            workload_attestation,
         }
+    }
+
+    async fn fetch_jwtsvid_inner(
+        &self,
+        request: Request<JwtsvidRequest>,
+        pid: u32,
+    ) -> Result<Response<JwtsvidResponse>, tonic::Status> {
+        let workload_attributes = self
+            .workload_attestation
+            .attest_workload(pid)
+            .await
+            .map_err(Error::WorkloadAttestation)?;
+
+        let request = create_workload_jwt::Request {
+            id: request.into_inner().spiffe_id,
+            audiences: Vec::new(),
+            selectors: workload_attributes.selectors,
+        };
+        let jwt_svid = self
+            .spiffe_server_client
+            .create_workload_jwt(request)
+            .await
+            .map_err(Error::CreateJWTSVIDs)?
+            .jwt_svid;
+
+        let response = Response::new(JwtsvidResponse {
+            svids: vec![Jwtsvid {
+                spiffe_id: jwt_svid.spiffe_id.to_string(),
+                svid: jwt_svid.token,
+            }],
+        });
+
+        Ok(response)
     }
 }
 
@@ -48,15 +90,31 @@ impl WorkloadAPIServer {
 impl SpiffeWorkloadApi for WorkloadAPIServer {
     async fn fetch_jwtsvid(
         &self,
-        _request: Request<JwtsvidRequest>,
+        request: Request<JwtsvidRequest>,
     ) -> Result<Response<JwtsvidResponse>, tonic::Status> {
-        todo!()
+        info!("Received for new jwt");
+
+        let pid = request
+            .extensions()
+            .get::<UdsConnectInfo>()
+            .ok_or(Error::UdsClientPID)?
+            .peer_cred
+            .ok_or(Error::UdsClientPID)?
+            .pid()
+            .ok_or(Error::UdsClientPID)?
+            .try_into()
+            .map_err(Error::NegativePID)?;
+
+        // Create inner to avoid dependency with pid which is very hard to mock
+        self.fetch_jwtsvid_inner(request, pid).await
     }
 
     async fn fetch_jwt_bundles(
         &self,
         _request: Request<JwtBundlesRequest>,
     ) -> Result<Response<Self::FetchJWTBundlesStream>, tonic::Status> {
+        info!("Received request for trust bundle");
+
         let mut bundles_map = HashMap::new();
 
         let trust_bundle = self
@@ -106,31 +164,33 @@ impl SpiffeWorkloadApi for WorkloadAPIServer {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::WorkloadAPIServer;
-    use core_objects::{Crv, JWKSet, KeyUse, Kty, TrustBundle, JWK};
+    use core_objects::{Crv, JWKSet, JWTSVIDCompact, KeyUse, Kty, TrustBundle, JWK, SPIFFEID};
     use futures_util::StreamExt;
-    use server_agent_api::get_trust_bundle;
+    use server_agent_api::{create_workload_jwt, get_trust_bundle};
     use spiffe_server_client::MockClient;
+    use std::{collections::BTreeMap, sync::Arc};
     use tonic::Request;
-    use workload_api::{spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest};
+    use workload_api::{
+        spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtsvidRequest,
+    };
+    use workload_attestation::{MockWorkloadAttestation, WorkloadAttributes};
 
     #[tokio::test]
     async fn fetch_jwt_bundles_happy_path() {
         let mut mock_client = MockClient::new();
+        let mock_workload_attestation = MockWorkloadAttestation::new();
 
         let trust_domain = "dummy".to_string();
         let jwk_set = JWKSet {
-            keys: [JWK {
+            keys: vec![JWK {
                 x: "xxx".to_string(),
                 y: "yyy".to_string(),
                 kty: Kty::EC,
                 crv: Crv::P256,
                 kid: "132".to_string(),
                 key_use: KeyUse::JWTSVID,
-            }]
-            .to_vec(),
+            }],
             spiffe_refresh_hint: 0,
             spiffe_sequence_number: 0,
         };
@@ -149,7 +209,9 @@ mod tests {
                 },
             })
         });
-        let workload_server = WorkloadAPIServer::new(Arc::new(mock_client));
+
+        let workload_server =
+            WorkloadAPIServer::new(Arc::new(mock_client), Arc::new(mock_workload_attestation));
 
         let request = Request::new(JwtBundlesRequest::default());
         let mut stream = workload_server
@@ -175,6 +237,8 @@ mod tests {
     #[tokio::test]
     async fn fetch_jwt_bundles_no_server_response() {
         let mut mock_client = MockClient::new();
+        let mock_workload_attestation = MockWorkloadAttestation::new();
+
         mock_client.expect_get_trust_bundle().return_once(move |_| {
             // Use full name here to avoid name collision
             Err(Box::new(
@@ -182,11 +246,85 @@ mod tests {
             ))
         });
 
-        let workload_server = WorkloadAPIServer::new(Arc::new(mock_client));
+        let workload_server =
+            WorkloadAPIServer::new(Arc::new(mock_client), Arc::new(mock_workload_attestation));
 
         let request = Request::new(JwtBundlesRequest::default());
         // Unwrap error doesn't work because the debug trait is missing.
         if workload_server.fetch_jwt_bundles(request).await.is_ok() {
+            panic!("Expected an error");
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_jwtsvid_happy_path() {
+        let mut mock_client = MockClient::new();
+        let mut mock_workload_attestation = MockWorkloadAttestation::new();
+
+        let spiffe_id = SPIFFEID {
+            trust_domain: "trust_domain".to_string(),
+            path: "path".to_string(),
+        };
+
+        let spiffe_id_tmp = spiffe_id.clone();
+        mock_client
+            .expect_create_workload_jwt()
+            .return_once(move |_| {
+                Ok(create_workload_jwt::Response {
+                    jwt_svid: JWTSVIDCompact {
+                        token: "token".to_string(),
+                        spiffe_id: spiffe_id_tmp,
+                        expiry: 0,
+                        issued_at: 0,
+                    },
+                })
+            });
+        mock_workload_attestation
+            .expect_attest_workload()
+            .return_once(move |_| {
+                Ok(WorkloadAttributes {
+                    selectors: BTreeMap::new(),
+                })
+            });
+
+        let workload_server =
+            WorkloadAPIServer::new(Arc::new(mock_client), Arc::new(mock_workload_attestation));
+        let request = Request::new(JwtsvidRequest::default());
+
+        let response = workload_server
+            .fetch_jwtsvid_inner(request, 0)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let resp = response.svids;
+        let jwt_svid = resp.first().unwrap();
+
+        assert_eq!(1, resp.len());
+        assert_eq!(spiffe_id.to_string(), jwt_svid.spiffe_id.to_string());
+        assert_eq!("token", jwt_svid.svid);
+    }
+
+    #[tokio::test]
+    async fn fetch_jwtsvid_error_workload_attestation() {
+        let mut mock_client = MockClient::new();
+        let mock_workload_attestation = MockWorkloadAttestation::new();
+
+        mock_client
+            .expect_create_workload_jwt()
+            .return_once(move |_| {
+                // Use full name here to avoid name collision
+                Err(Box::new(
+                    spiffe_server_client::http::error::Error::Connector("dummy".to_string()),
+                ))
+            });
+
+        let workload_server =
+            WorkloadAPIServer::new(Arc::new(mock_client), Arc::new(mock_workload_attestation));
+
+        let request = Request::new(JwtsvidRequest::default());
+        // Unwrap error doesn't work because the debug trait is missing.
+        if workload_server.fetch_jwtsvid(request).await.is_ok() {
             panic!("Expected an error");
         }
     }

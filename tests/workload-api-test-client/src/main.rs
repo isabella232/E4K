@@ -15,7 +15,9 @@ use log::info;
 use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use workload_api::{spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest};
+use workload_api::{
+    spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, JwtsvidRequest,
+};
 
 #[tokio::main]
 async fn main() {
@@ -49,4 +51,7 @@ async fn main() {
             jwk_set, trust_domain
         );
     }
+
+    let request = JwtsvidRequest::default();
+    client.fetch_jwtsvid(request).await.unwrap();
 }

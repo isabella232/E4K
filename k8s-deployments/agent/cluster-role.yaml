@@ -6,7 +6,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["pods","nodes","nodes/proxy"]
-  verbs: ["get"]
+  verbs: ["get","list"]
 
 ---
 # Binds above cluster role to spire-agent service account
@@ -17,7 +17,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: iotedge-spiffe-agent
-  namespace: kube-system   
+  namespace: default   
 roleRef:
   kind: ClusterRole
   name: iotedge-spiffe-agent-cluster-role

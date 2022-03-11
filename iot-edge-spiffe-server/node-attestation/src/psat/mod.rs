@@ -29,7 +29,7 @@ use error::Error;
 #[derive(Clone, Debug, Default)]
 struct SelectorInfo {
     cluster_name: String,
-    name_space: String,
+    namespace: String,
     service_account_name: String,
     pod_name: String,
     pod_uid: String,
@@ -67,7 +67,7 @@ impl NodeAttestation {
     async fn review_token(&self, token: &str) -> Result<TokenReviewStatus, Error> {
         let mut body = TokenReview::default();
         let _ = body.spec.token.insert(token.to_string());
-        let _ = body.spec.audiences = Some([self.audience.clone()].to_vec());
+        let _ = body.spec.audiences = Some(vec![self.audience.clone()]);
 
         let (req, _) = TokenReview::create_token_review(&body, Default::default())
             .map_err(Error::TokenReviewRequest)?;
@@ -101,74 +101,75 @@ impl NodeAttestation {
         &self,
         token_review_status: TokenReviewStatus,
     ) -> Result<SelectorInfo, Error> {
-        let mut selector_info = SelectorInfo::default();
-
         let extras = token_review_status
             .user
             .ok_or(Error::MissingField(MissingField::UserInfo))?
             .extra
             .ok_or(Error::MissingField(MissingField::Extra))?;
 
-        let pods: Api<Pod> = Api::default_namespaced(self.client.clone());
-        selector_info.pod_name = extras
+        let pod_name = extras
             .get("authentication.kubernetes.io/pod-name")
             .ok_or(Error::MissingField(MissingField::PodName))?
             .first()
             .ok_or(Error::MissingField(MissingField::PodName))?
             .clone();
 
-        let pod = pods
-            .get(&selector_info.pod_name)
-            .await
-            .map_err(Error::GettingPodInfo)?;
+        let pods: Api<Pod> = Api::default_namespaced(self.client.clone());
+
+        let pod = pods.get(&pod_name).await.map_err(Error::GettingPodInfo)?;
 
         let pod_spec = pod.spec.ok_or(Error::MissingField(MissingField::PodSpec))?;
-
-        selector_info.node_name = pod_spec
-            .node_name
-            .ok_or(Error::MissingField(MissingField::NodeName))?;
-
-        let nodes: Api<Node> = Api::all(self.client.clone());
-
-        let node = nodes
-            .get(&selector_info.node_name)
-            .await
-            .map_err(Error::GettingNodeInfo)?;
-
-        selector_info.pod_uid = extras
-            .get("authentication.kubernetes.io/pod-uid")
-            .ok_or(Error::MissingField(MissingField::PodUid))?
-            .first()
-            .ok_or(Error::MissingField(MissingField::PodUid))?
-            .clone();
-
-        selector_info.cluster_name = self.cluster_name.clone();
-
-        selector_info.name_space = pod
-            .metadata
-            .namespace
-            .ok_or(Error::MissingField(MissingField::Namespace))?;
-        selector_info.service_account_name = pod_spec
-            .service_account_name
-            .ok_or(Error::MissingField(MissingField::ServiceAccountName))?;
         let pod_status = pod
             .status
             .ok_or(Error::MissingField(MissingField::PodStatus))?;
-        selector_info.node_ip = pod_status
-            .host_ip
-            .ok_or(Error::MissingField(MissingField::HostIP))?;
-        selector_info.node_uid = node
-            .metadata
-            .uid
-            .ok_or(Error::MissingField(MissingField::NodeUid))?;
-        let pod_labels = pod
-            .metadata
-            .labels
-            .ok_or(Error::MissingField(MissingField::PodLabels))?;
-        let node_labels = node
-            .metadata
-            .labels
-            .ok_or(Error::MissingField(MissingField::NodeLabels))?;
+
+        let node_name = pod_spec
+            .node_name
+            .ok_or(Error::MissingField(MissingField::NodeName))?;
+        let nodes: Api<Node> = Api::all(self.client.clone());
+
+        let node = nodes
+            .get(&node_name)
+            .await
+            .map_err(Error::GettingNodeInfo)?;
+
+        let selector_info = SelectorInfo {
+            cluster_name: self.cluster_name.clone(),
+            pod_name,
+            pod_uid: pod
+                .metadata
+                .uid
+                .ok_or(Error::MissingField(MissingField::PodUid))?,
+            namespace: pod
+                .metadata
+                .namespace
+                .ok_or(Error::MissingField(MissingField::Namespace))?,
+            pod_labels: pod
+                .metadata
+                .labels
+                .ok_or(Error::MissingField(MissingField::PodLabels))?
+                .into_iter()
+                .filter(|(key, _)| self.allowed_pod_label_keys.get(key).is_some())
+                .collect(),
+            node_name,
+            service_account_name: pod_spec
+                .service_account_name
+                .ok_or(Error::MissingField(MissingField::ServiceAccountName))?,
+            node_ip: pod_status
+                .host_ip
+                .ok_or(Error::MissingField(MissingField::HostIP))?,
+            node_uid: node
+                .metadata
+                .uid
+                .ok_or(Error::MissingField(MissingField::NodeUid))?,
+            node_labels: node
+                .metadata
+                .labels
+                .ok_or(Error::MissingField(MissingField::NodeLabels))?
+                .into_iter()
+                .filter(|(key, _)| self.allowed_node_label_keys.get(key).is_some())
+                .collect(),
+        };
 
         self.service_account_allow_list
             .get(&selector_info.service_account_name)
@@ -177,15 +178,6 @@ impl NodeAttestation {
             .ok_or_else(|| {
                 Error::ServiceAccountNotAllowed(selector_info.service_account_name.clone())
             })?;
-
-        selector_info.pod_labels = pod_labels
-            .into_iter()
-            .filter(|(key, _)| self.allowed_pod_label_keys.get(key).is_some())
-            .collect();
-        selector_info.node_labels = node_labels
-            .into_iter()
-            .filter(|(key, _)| self.allowed_node_label_keys.get(key).is_some())
-            .collect();
 
         Ok(selector_info)
     }
@@ -196,19 +188,18 @@ impl NodeAttestation {
         let selector_info = self.get_selector_info(token_review_status).await?;
 
         let mut selectors = HashMap::new();
-        let selectors_vec = [
+        let selectors_vec = vec![
             NodeSelector::Cluster(selector_info.cluster_name.clone()),
-            NodeSelector::AgentNameSpace(selector_info.name_space),
+            NodeSelector::AgentNameSpace(selector_info.namespace),
             NodeSelector::AgentServiceAccount(selector_info.service_account_name),
-            NodeSelector::AgentPodName(selector_info.pod_name),
+            NodeSelector::AgentPodName(selector_info.pod_name.clone()),
             NodeSelector::AgentPodUID(selector_info.pod_uid),
             NodeSelector::AgentNodeIP(selector_info.node_ip),
             NodeSelector::AgentNodeName(selector_info.node_name),
             NodeSelector::AgentNodeUID(selector_info.node_uid.clone()),
             NodeSelector::AgentNodeLabels(selector_info.node_labels),
             NodeSelector::AgentPodLabels(selector_info.pod_labels),
-        ]
-        .to_vec();
+        ];
 
         for selector in selectors_vec {
             selectors.insert(NodeSelectorType::from(&selector), selector);
@@ -223,10 +214,10 @@ impl NodeAttestation {
             path,
         };
 
-        info!("IoTEdge SPIFFE Agent attested successfully with the following selectors");
-        for selector in &selectors {
-            info!("Selector: {:?}", selector);
-        }
+        info!(
+            "IoTEdge SPIFFE Agent {} was attested successfully",
+            selector_info.pod_name
+        );
 
         Ok(AgentAttributes {
             spiffe_id,
@@ -350,7 +341,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(selector_info.cluster_name, "demo-cluster");
-        assert_eq!(selector_info.name_space, "namespace");
+        assert_eq!(selector_info.namespace, "namespace");
         assert_eq!(selector_info.service_account_name, "iotedge-spiffe-agent");
         assert_eq!(selector_info.pod_name, "pod_name");
         assert_eq!(
@@ -660,16 +651,11 @@ mod tests {
     async fn get_selector_pod_uid_error() {
         let mut node_attestation = init_selector_test().await;
 
-        let pod = get_pods();
+        let mut pod = get_pods();
         let node = get_nodes();
-        let mut token_review_status = get_token_review_status();
-        if let Some(user) = &mut token_review_status.user {
-            if let Some(extra) = &mut user.extra {
-                extra
-                    .remove("authentication.kubernetes.io/pod-uid")
-                    .unwrap();
-            }
-        }
+        let token_review_status = get_token_review_status();
+        pod.metadata.uid = None;
+
         node_attestation.client.queue_response(pod).await;
         node_attestation.client.queue_response(node).await;
 

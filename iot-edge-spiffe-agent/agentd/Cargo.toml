@@ -8,7 +8,9 @@ edition = "2021"
 [dependencies]
 async-stream = "0.3"
 futures-util = "0.3"
+kube = { version = "0.69.0", features = ["runtime", "derive"] }
 log = "0.4"
+mock-kube = { path = "../../tests/mocks/kube", optional = true }
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 tokio-stream = {version = "0.1", features = ["net"]}
@@ -19,9 +21,13 @@ node-attestation-agent = { path = "../node-attestation" }
 spiffe-server-client = { path = "../spiffe-server-client" }
 workload-api = { path = "../../common/workload-api" }
 workload-api-server = { path = "../workload-api-server" }
-
+workload-attestation = { path = "../workload-attestation" } 
 
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 
+[dev-dependencies]
+workload-attestation = { path = "../workload-attestation", features = ["tests"]  }
+mock-kube = { path = "../../tests/mocks/kube" }
+
 [features]
-tests = []
+tests = ["mock-kube"]

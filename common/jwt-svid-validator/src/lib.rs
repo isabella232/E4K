@@ -205,7 +205,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -231,7 +231,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id: spiffe_id.clone(),
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -249,7 +249,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -311,7 +311,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -344,7 +344,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -375,7 +375,7 @@ mod tests {
         };
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [audience_spiffe_id.clone()].to_vec(),
+            audiences: vec![audience_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
 
@@ -491,7 +491,7 @@ mod tests {
     ) -> String {
         let claims = JWTClaims {
             subject: spiffe_id.clone(),
-            audience: [audience_spiffe_id.clone()].to_vec(),
+            audience: vec![audience_spiffe_id.clone()],
             expiry: 10,
             issued_at: 0,
             other_identities: Vec::new(),

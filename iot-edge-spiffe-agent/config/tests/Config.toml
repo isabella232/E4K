@@ -12,3 +12,9 @@ type = "INSECUREBOOTSTRAP"
 type = "PSAT"
 [node_attestation_config.content]
 token_path = "/var/run/secrets/tokens/iotedge-spiffe-agent"
+
+[workload_attestation_config]
+type = "K8S"
+[workload_attestation_config.content]
+max_poll_attempt = 2
+poll_retry_interval_ms = 0

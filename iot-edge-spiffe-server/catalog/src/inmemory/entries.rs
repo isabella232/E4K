@@ -173,11 +173,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
@@ -207,7 +206,7 @@ mod tests {
     #[tokio::test]
     async fn get_entry_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let entries = [entry1.clone(), entry2].to_vec();
+        let entries = vec![entry1.clone(), entry2];
         catalog.batch_create(entries).await.unwrap();
 
         catalog.get_entry(&entry1.id).await.unwrap();
@@ -216,14 +215,14 @@ mod tests {
     #[tokio::test]
     async fn create_registration_entry_test_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let entries = [entry1, entry2].to_vec();
+        let entries = vec![entry1, entry2];
         catalog.batch_create(entries).await.unwrap();
     }
 
     #[tokio::test]
     async fn create_registration_entry_test_duplicate_entry() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let entries = [entry1.clone(), entry2.clone()].to_vec();
+        let entries = vec![entry1.clone(), entry2.clone()];
 
         catalog.batch_create(entries.clone()).await.unwrap();
 
@@ -239,7 +238,7 @@ mod tests {
     #[tokio::test]
     async fn update_registration_entry_test_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let entries = [entry1, entry2].to_vec();
+        let entries = vec![entry1, entry2];
 
         catalog.batch_create(entries.clone()).await.unwrap();
 
@@ -249,7 +248,7 @@ mod tests {
     #[tokio::test]
     async fn update_registration_entry_test_entry_not_exist() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let entries = [entry1, entry2].to_vec();
+        let entries = vec![entry1, entry2];
 
         let results = catalog.batch_update(entries).await.unwrap_err();
         for (_id, result) in results {
@@ -262,8 +261,8 @@ mod tests {
     #[tokio::test]
     async fn delete_registration_entry_test_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
-        let entries = [entry1, entry2].to_vec();
+        let ids = vec![entry1.id.clone(), entry2.id.clone()];
+        let entries = vec![entry1, entry2];
 
         catalog.batch_create(entries.clone()).await.unwrap();
 
@@ -273,7 +272,7 @@ mod tests {
     #[tokio::test]
     async fn delete_registration_entry_test_entry_not_exist() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
+        let ids = vec![entry1.id.clone(), entry2.id.clone()];
 
         let results = catalog.batch_delete(&ids).await.unwrap_err();
         for (_id, result) in results {
@@ -286,8 +285,8 @@ mod tests {
     #[tokio::test]
     async fn get_registration_entry_test_happy_path() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
-        let entries = [entry1, entry2].to_vec();
+        let ids = vec![entry1.id.clone(), entry2.id.clone()];
+        let entries = vec![entry1, entry2];
 
         catalog.batch_create(entries).await.unwrap();
 
@@ -300,7 +299,7 @@ mod tests {
     #[tokio::test]
     async fn get_registration_entry_test_entry_not_exist() {
         let (catalog, entry1, entry2) = init_entry_test();
-        let ids = [entry1.id.clone(), entry2.id.clone()].to_vec();
+        let ids = vec![entry1.id.clone(), entry2.id.clone()];
 
         let results = catalog.batch_get(&ids).await;
         for (_id, result) in results {

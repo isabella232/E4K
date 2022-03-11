@@ -23,6 +23,8 @@ pub struct Config {
     pub trust_bundle_config: TrustBundleConfig,
     #[serde(alias = "node-attestation-config")]
     pub node_attestation_config: NodeAttestationConfig,
+    #[serde(alias = "workload-attestation-config")]
+    pub workload_attestation_config: WorkloadAttestationConfig,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -35,6 +37,28 @@ pub enum NodeAttestationConfig {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct NodeAttestationConfigK8s {
     pub token_path: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
+pub enum WorkloadAttestationConfig {
+    K8s(WorkloadAttestationConfigK8s),
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WorkloadAttestationConfigK8s {
+    #[serde(default = "default_max_poll_attempt")]
+    pub max_poll_attempt: usize,
+    #[serde(default = "default_poll_retry_interval_ms")]
+    pub poll_retry_interval_ms: u64,
+}
+
+fn default_max_poll_attempt() -> usize {
+    60
+}
+
+fn default_poll_retry_interval_ms() -> u64 {
+    500
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

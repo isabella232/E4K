@@ -41,6 +41,10 @@ curl "http://localhost:8443/trust-bundle?api-version=2022-06-01&jwt_keys=true"
 
 ## Get Trust bundle to validate entries:
 
+# Configuration
+
+
+
 
 # Admin APIs
 ---

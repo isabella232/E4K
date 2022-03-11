@@ -22,3 +22,6 @@ kubectl apply -f agent/service-account.yaml
 kubectl apply -f agent/cluster-role.yaml
 kubectl apply -f agent/config-map.yaml 
 kubectl apply -f agent/daemonset.yaml
+
+# Checking authorizations
+kubectl auth can-i get pods --as=system:serviceaccount:default:iotedge-spiffe-server

@@ -10,7 +10,10 @@
     clippy::too_many_lines
 )]
 
-use std::{collections::BTreeMap, time::SystemTime};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    time::SystemTime,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -78,9 +81,60 @@ pub enum NodeSelector {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
 pub enum WorkloadSelector {
-    WorkloadServiceAccount(String),
-    WorkloadName(String),
-    WorkloadUID(String),
+    NameSpace(String),
+    ServiceAccount(String),
+    PodName(String),
+    PodUID(String),
+    NodeName(String),
+    PodLabels(BTreeMap<String, String>),
+    ContainerName(String),
+    ContainerImage(String),
+    PodOwners(BTreeSet<String>),
+    PodOwnerUIDs(BTreeSet<String>),
+    PodImages(BTreeSet<String>),
+    PodImageCount(usize),
+    PodInitImages(BTreeSet<String>),
+    PodInitImageCount(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Ord, PartialOrd)]
+pub enum WorkloadSelectorType {
+    NameSpace,
+    ServiceAccount,
+    PodName,
+    PodUID,
+    NodeName,
+    PodLabels,
+    ContainerName,
+    ContainerImage,
+    ContainerImageId,
+    PodOwners,
+    PodOwnerUIDs,
+    PodImages,
+    PodImageCount,
+    PodInitImages,
+    PodInitImageCount,
+}
+
+impl From<&WorkloadSelector> for WorkloadSelectorType {
+    fn from(selector: &WorkloadSelector) -> Self {
+        match selector {
+            WorkloadSelector::NameSpace(_) => WorkloadSelectorType::NameSpace,
+            WorkloadSelector::ServiceAccount(_) => WorkloadSelectorType::ServiceAccount,
+            WorkloadSelector::PodName(_) => WorkloadSelectorType::PodName,
+            WorkloadSelector::PodUID(_) => WorkloadSelectorType::PodUID,
+            WorkloadSelector::NodeName(_) => WorkloadSelectorType::NodeName,
+            WorkloadSelector::PodLabels(_) => WorkloadSelectorType::PodLabels,
+            WorkloadSelector::ContainerName(_) => WorkloadSelectorType::ContainerName,
+            WorkloadSelector::ContainerImage(_) => WorkloadSelectorType::ContainerImage,
+            WorkloadSelector::PodOwners(_) => WorkloadSelectorType::PodOwners,
+            WorkloadSelector::PodOwnerUIDs(_) => WorkloadSelectorType::PodOwnerUIDs,
+            WorkloadSelector::PodImages(_) => WorkloadSelectorType::PodImages,
+            WorkloadSelector::PodImageCount(_) => WorkloadSelectorType::PodImageCount,
+            WorkloadSelector::PodInitImages(_) => WorkloadSelectorType::PodInitImages,
+            WorkloadSelector::PodInitImageCount(_) => WorkloadSelectorType::PodInitImageCount,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

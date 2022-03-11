@@ -13,6 +13,7 @@ spec:
       labels:
         app: iotedge-spiffe-agent
     spec:
+      hostPID: true
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet    
       serviceAccountName: iotedge-spiffe-agent
@@ -24,6 +25,11 @@ spec:
             allowPrivilegeEscalation: true
           command: ["sleep"]
           args: ["1000000000"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           volumeMounts:
             - name: working-repo
               mountPath: /debug

@@ -18,7 +18,7 @@ impl Api {
 
         let jwt_svid_params = svid_factory::JWTSVIDParams {
             spiffe_id: agent_attributes.spiffe_id,
-            audiences: [self.iotedge_server_spiffe_id.clone()].to_vec(),
+            audiences: vec![self.iotedge_server_spiffe_id.clone()],
             other_identities: Vec::new(),
         };
         let jwt_svid = self

@@ -66,7 +66,7 @@ mod tests {
     use svid_factory::SVIDFactory;
     use trust_bundle_builder::TrustBundleBuilder;
 
-    use std::sync::Arc;
+    use std::{collections::BTreeMap, sync::Arc};
     use tempdir::TempDir;
 
     async fn init() -> (Api, Vec<RegistrationEntry>, Arc<KeyManager>, Config) {
@@ -147,11 +147,11 @@ mod tests {
 
         let req = create_workload_jwt::Request {
             id: entry.id.clone(),
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
+            selectors: BTreeMap::new(),
         };
 
         let response = api.create_workload_jwt(req).await.unwrap();
@@ -171,11 +171,11 @@ mod tests {
 
         let req = create_workload_jwt::Request {
             id: entry.id.clone(),
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
+            selectors: BTreeMap::new(),
         };
 
         let error = api.create_workload_jwt(req).await.unwrap_err();
@@ -193,11 +193,11 @@ mod tests {
 
         let req = create_workload_jwt::Request {
             id: entry.id.clone(),
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
+            selectors: BTreeMap::new(),
         };
 
         let current_jwt_key = &key_manager.slots.read().await.current_jwt_key;

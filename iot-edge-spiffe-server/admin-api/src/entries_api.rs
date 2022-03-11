@@ -111,11 +111,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
@@ -243,11 +242,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
@@ -308,11 +306,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
@@ -348,11 +345,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster("selector1".to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,

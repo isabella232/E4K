@@ -159,11 +159,10 @@ mod tests {
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id: spiffe_id.clone(),
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
             other_identities: Vec::new(),
         };
 
@@ -188,11 +187,10 @@ mod tests {
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id: spiffe_id.clone(),
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
             other_identities: Vec::new(),
         };
 
@@ -223,11 +221,10 @@ mod tests {
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id,
-            audiences: [SPIFFEID {
+            audiences: vec![SPIFFEID {
                 trust_domain: "my trust domain".to_string(),
                 path: "audiences".to_string(),
-            }]
-            .to_vec(),
+            }],
             other_identities: Vec::new(),
         };
 

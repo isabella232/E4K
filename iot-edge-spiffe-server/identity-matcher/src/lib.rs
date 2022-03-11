@@ -12,34 +12,16 @@
 
 mod error;
 
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use catalog::{Entries, NodeSelectorType};
 use core_objects::{
-    AttestationConfig, NodeSelector, RegistrationEntry, WorkloadSelector, SPIFFEID,
+    AttestationConfig, NodeSelector, RegistrationEntry, WorkloadSelector, WorkloadSelectorType,
+    SPIFFEID,
 };
 use error::Error;
 
 const PAGE_SIZE: usize = 100;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum WorkloadSelectorType {
-    WorkloadServiceAccount,
-    WorkloadUID,
-    WorkloadName,
-}
-
-impl From<&WorkloadSelector> for WorkloadSelectorType {
-    fn from(selector: &WorkloadSelector) -> Self {
-        match selector {
-            WorkloadSelector::WorkloadServiceAccount(_) => {
-                WorkloadSelectorType::WorkloadServiceAccount
-            }
-            WorkloadSelector::WorkloadName(_) => WorkloadSelectorType::WorkloadName,
-            WorkloadSelector::WorkloadUID(_) => WorkloadSelectorType::WorkloadUID,
-        }
-    }
-}
 
 pub struct IdentityMatcher {
     catalog: Arc<dyn Entries + Sync + Send>,
@@ -215,11 +197,10 @@ mod tests {
             other_identities: Vec::new(),
             spiffe_id: parent_spiffe_id.clone(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
-                value: [
+                value: vec![
                     NodeSelector::Cluster(CLUSTER_NAME.to_string()),
                     NodeSelector::AgentNameSpace("selector2".to_string()),
-                ]
-                .to_vec(),
+                ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
@@ -229,10 +210,7 @@ mod tests {
             revision_number: 0,
             store_svid: false,
         };
-        catalog
-            .batch_create([parent.clone()].to_vec())
-            .await
-            .unwrap();
+        catalog.batch_create(vec![parent.clone()]).await.unwrap();
 
         // Add pod 1
         let mut entry1 = parent.clone();
@@ -240,13 +218,10 @@ mod tests {
         entry1.spiffe_id.path = POD_NAME1.to_string();
         entry1.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: [WorkloadSelector::WorkloadName(POD_NAME1.to_string())].to_vec(),
+            value: vec![WorkloadSelector::PodName(POD_NAME1.to_string())],
             plugin: K8s,
         });
-        catalog
-            .batch_create([entry1.clone()].to_vec())
-            .await
-            .unwrap();
+        catalog.batch_create(vec![entry1.clone()]).await.unwrap();
 
         // Add pod 2
         let mut entry2 = parent.clone();
@@ -254,13 +229,10 @@ mod tests {
         entry2.spiffe_id.path = POD_NAME2.to_string();
         entry2.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: [WorkloadSelector::WorkloadName(POD_NAME2.to_string())].to_vec(),
+            value: vec![WorkloadSelector::PodName(POD_NAME2.to_string())],
             plugin: K8s,
         });
-        catalog
-            .batch_create([entry2.clone()].to_vec())
-            .await
-            .unwrap();
+        catalog.batch_create(vec![entry2.clone()]).await.unwrap();
 
         // Add group
         let mut group = parent.clone();
@@ -268,16 +240,10 @@ mod tests {
         group.spiffe_id.path = GROUP_NAME.to_string();
         group.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: [WorkloadSelector::WorkloadServiceAccount(
-                GROUP_NAME.to_string(),
-            )]
-            .to_vec(),
+            value: vec![WorkloadSelector::ServiceAccount(GROUP_NAME.to_string())],
             plugin: K8s,
         });
-        catalog
-            .batch_create([group.clone()].to_vec())
-            .await
-            .unwrap();
+        catalog.batch_create(vec![group.clone()]).await.unwrap();
 
         (IdentityMatcher::new(catalog), parent, entry1, entry2, group)
     }
@@ -329,9 +295,7 @@ mod tests {
         let mut workload_selectors = entry1_selectors.clone();
         // Push some other dummy selectors. Additional selectors should be ignored.
         // The important part is that all the entry selectors need to be mapped.
-        workload_selectors.push(WorkloadSelector::WorkloadServiceAccount(
-            "dummy".to_string(),
-        ));
+        workload_selectors.push(WorkloadSelector::ServiceAccount("dummy".to_string()));
 
         let mut parent_selectors = parent_selectors.clone();
         parent_selectors.insert(
@@ -374,9 +338,7 @@ mod tests {
         let mut workload_selectors = entry1_selectors.clone();
         // Push some other dummy selectors. Additional selectors should be ignored.
         // The important part is that all the entry selectors need to be mapped.
-        workload_selectors.push(WorkloadSelector::WorkloadServiceAccount(
-            "dummy".to_string(),
-        ));
+        workload_selectors.push(WorkloadSelector::ServiceAccount("dummy".to_string()));
 
         let mut parent_selectors = parent_selectors.clone();
         parent_selectors.insert(
@@ -387,7 +349,7 @@ mod tests {
         // Delete parent entry to create an error.
         identity_matcher
             .catalog
-            .batch_delete(&[parent.id.clone()].to_vec())
+            .batch_delete(&[parent.id.clone()])
             .await
             .unwrap();
         let error = identity_matcher
@@ -424,7 +386,7 @@ mod tests {
         // Delete parent entry to create an error.
         identity_matcher
             .catalog
-            .batch_delete(&[parent.id.clone()].to_vec())
+            .batch_delete(&[parent.id.clone()])
             .await
             .unwrap();
 
@@ -460,8 +422,8 @@ mod tests {
         let parent_selectors = get_node_selectors(&parent);
 
         // entry1 specifies a pod name, so a wrong selector type will not match
-        let selector = &WorkloadSelector::WorkloadUID("dummy".to_string());
-        workload_selectors.insert(WorkloadSelectorType::WorkloadUID, selector);
+        let selector = &WorkloadSelector::PodUID("dummy".to_string());
+        workload_selectors.insert(WorkloadSelectorType::PodUID, selector);
         let result = identity_matcher
             .match_entry(&workload_selectors, &parent, &parent_selectors)
             .await
@@ -469,8 +431,8 @@ mod tests {
         assert!(!result);
 
         // This time try with the correct selector but wong value.
-        let selector = &WorkloadSelector::WorkloadName("dummy".to_string());
-        workload_selectors.insert(WorkloadSelectorType::WorkloadName, selector);
+        let selector = &WorkloadSelector::PodName("dummy".to_string());
+        workload_selectors.insert(WorkloadSelectorType::PodName, selector);
         let result = identity_matcher
             .match_entry(&workload_selectors, &parent, &parent_selectors)
             .await

@@ -18,3 +18,7 @@ data:
     type = "PSAT"
     [node_attestation_config.content]
     token_path = "/var/run/secrets/tokens/iotedge-spiffe-agent"
+
+    [workload_attestation_config]
+    type = "K8S"
+    [workload_attestation_config.content]

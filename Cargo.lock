@@ -39,8 +39,10 @@ dependencies = [
  "agent-config",
  "async-stream",
  "futures-util",
+ "kube",
  "log",
  "logger",
+ "mock-kube",
  "node-attestation-agent",
  "spiffe-server-client",
  "thiserror",
@@ -49,6 +51,7 @@ dependencies = [
  "tonic",
  "workload-api",
  "workload-api-server",
+ "workload-attestation",
 ]
 
 [[package]]
@@ -205,6 +208,18 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "cgroups-rs"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdae996d9638ba03253ffa1c93345a585974a97abbdeab9176c77922f3efc1e8"
+dependencies = [
+ "libc",
+ "log",
+ "nix",
+ "regex",
+]
 
 [[package]]
 name = "chrono"
@@ -1761,9 +1776,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+checksum = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2794,7 +2809,10 @@ dependencies = [
  "async-stream",
  "core-objects",
  "futures-util",
+ "libc",
+ "log",
  "matches",
+ "mio",
  "serde",
  "serde_json",
  "server-agent-api",
@@ -2803,6 +2821,7 @@ dependencies = [
  "tokio",
  "tonic",
  "workload-api",
+ "workload-attestation",
 ]
 
 [[package]]
@@ -2817,6 +2836,25 @@ dependencies = [
  "tonic",
  "tower",
  "workload-api",
+]
+
+[[package]]
+name = "workload-attestation"
+version = "0.1.0"
+dependencies = [
+ "agent-config",
+ "async-trait",
+ "cgroups-rs",
+ "core-objects",
+ "k8s-openapi",
+ "kube",
+ "log",
+ "matches",
+ "mock-kube",
+ "mockall",
+ "regex",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
