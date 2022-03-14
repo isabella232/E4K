@@ -89,8 +89,8 @@ mod tests {
     use std::sync::Arc;
 
     use core_objects::{
-        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelector,
-        RegistrationEntry, SPIFFEID,
+        build_selector_string, AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin,
+        NodeSelectorType, RegistrationEntry, SPIFFEID,
     };
 
     use crate::Api;
@@ -112,8 +112,8 @@ mod tests {
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster("selector1".to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    build_selector_string(&NodeSelectorType::Cluster, "selector1"),
+                    build_selector_string(&NodeSelectorType::AgentNameSpace, "selector2"),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
@@ -243,8 +243,8 @@ mod tests {
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster("selector1".to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    build_selector_string(&NodeSelectorType::Cluster, "selector1"),
+                    build_selector_string(&NodeSelectorType::AgentNameSpace, "selector2"),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
@@ -307,8 +307,8 @@ mod tests {
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster("selector1".to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    build_selector_string(&NodeSelectorType::Cluster, "selector1"),
+                    build_selector_string(&NodeSelectorType::AgentNameSpace, "selector2"),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
@@ -346,8 +346,8 @@ mod tests {
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster("selector1".to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    build_selector_string(&NodeSelectorType::Cluster, "selector1"),
+                    build_selector_string(&NodeSelectorType::AgentNameSpace, "selector2"),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),

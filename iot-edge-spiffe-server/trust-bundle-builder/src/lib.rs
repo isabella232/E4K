@@ -22,12 +22,12 @@ pub mod error;
 pub struct TrustBundleBuilder {
     trust_domain: String,
     refresh_hint: u64,
-    catalog: Arc<dyn Catalog + Sync + Send>,
+    catalog: Arc<dyn Catalog>,
 }
 
 impl TrustBundleBuilder {
     #[must_use]
-    pub fn new(config: &Config, catalog: Arc<dyn Catalog + Sync + Send>) -> Arc<Self> {
+    pub fn new(config: &Config, catalog: Arc<dyn Catalog>) -> Arc<Self> {
         Arc::new(TrustBundleBuilder {
             trust_domain: config.trust_domain.clone(),
             refresh_hint: config.trust_bundle.refresh_hint,

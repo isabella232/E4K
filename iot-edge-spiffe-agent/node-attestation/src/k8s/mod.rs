@@ -2,12 +2,9 @@
 
 pub mod error;
 
-use std::{fs, path, sync::Arc};
+use std::{fs, path};
 
 use agent_config::NodeAttestationConfigK8s;
-use core_objects::JWTSVIDCompact;
-use server_agent_api::attest_agent;
-use spiffe_server_client::Client;
 
 use crate::NodeAttestation as NodeAttestationTrait;
 
@@ -15,49 +12,37 @@ use error::Error;
 
 pub struct NodeAttestation {
     token_path: path::PathBuf,
-    server_api_client: Arc<dyn Client + Sync + Send>,
 }
 
 impl NodeAttestation {
     #[must_use]
-    pub fn new(
-        config: &NodeAttestationConfigK8s,
-        server_api_client: Arc<dyn Client + Sync + Send>,
-    ) -> Self {
+    pub fn new(config: &NodeAttestationConfigK8s) -> Self {
         let token_path = path::Path::new(&config.token_path).to_path_buf();
-        NodeAttestation {
-            token_path,
-            server_api_client,
-        }
+        NodeAttestation { token_path }
     }
 }
 
 #[async_trait::async_trait]
 impl NodeAttestationTrait for NodeAttestation {
-    async fn attest_agent(&self) -> Result<JWTSVIDCompact, Box<dyn std::error::Error + Send>> {
+    async fn get_attestation_token(&self) -> Result<String, Box<dyn std::error::Error + Send>> {
         let token = fs::read_to_string(&self.token_path)
             .map_err(|err| Box::new(Error::UnableToReadToken(err)) as _)?;
-        let auth = attest_agent::Auth { token };
-        let response = self.server_api_client.attest_agent(auth).await?;
 
-        Ok(response.jwt_svid)
+        Ok(token)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::sync::Arc;
 
     use crate::k8s::Error;
     use crate::k8s::NodeAttestation;
     use crate::NodeAttestation as NodeAttestationTrait;
     use agent_config::Config;
     use agent_config::NodeAttestationConfig::Psat;
-    use core_objects::{JWTSVIDCompact, AGENT_DEFAULT_CONFIG_PATH, SPIFFEID};
+    use core_objects::AGENT_DEFAULT_CONFIG_PATH;
     use matches::assert_matches;
-    use server_agent_api::attest_agent;
-    use spiffe_server_client::MockClient;
     use tempdir::TempDir;
 
     fn init_tests() -> (Config, String) {
@@ -84,28 +69,11 @@ mod tests {
 
         config.token_path = token_path;
 
-        let jwt_svid = JWTSVIDCompact {
-            token: "dummy".to_string(),
-            spiffe_id: SPIFFEID {
-                trust_domain: "dummy".to_string(),
-                path: "dummy".to_string(),
-            },
-            expiry: 0,
-            issued_at: 0,
-        };
-        let jwt_copy = jwt_svid.clone();
-        let mut mock = MockClient::new();
-        mock.expect_attest_agent().returning(move |_| {
-            Ok(attest_agent::Response {
-                jwt_svid: jwt_copy.clone(),
-            })
-        });
+        let node_attestation = NodeAttestation::new(config);
 
-        let node_attestation = NodeAttestation::new(config, Arc::new(mock));
+        let token = node_attestation.get_attestation_token().await.unwrap();
 
-        let resp = node_attestation.attest_agent().await.unwrap();
-
-        assert_eq!(resp, jwt_svid);
+        assert_eq!(token, "dummy token");
     }
 
     #[tokio::test]
@@ -117,12 +85,11 @@ mod tests {
         } else {
             panic!("Unexpected attestation type");
         };
-        let mock = MockClient::new();
 
-        let node_attestation = NodeAttestation::new(config, Arc::new(mock));
+        let node_attestation = NodeAttestation::new(config);
 
         let error = *node_attestation
-            .attest_agent()
+            .get_attestation_token()
             .await
             .unwrap_err()
             .downcast::<Error>()

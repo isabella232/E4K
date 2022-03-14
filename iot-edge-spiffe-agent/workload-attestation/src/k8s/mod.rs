@@ -14,12 +14,12 @@ pub mod error;
 
 use agent_config::WorkloadAttestationConfigK8s;
 use cgroups_rs::cgroup;
-use core_objects::{WorkloadSelector, WorkloadSelectorType};
+use core_objects::{build_selector_string, WorkloadSelectorType};
 use k8s_openapi::{
     api::core::v1::{ContainerStatus, Pod},
     url::Url,
 };
-use log::info;
+use log::{debug, info};
 use regex::Regex;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -177,7 +177,7 @@ impl WorkloadAttestation {
 
         let selector_info = get_selector_info(pod, container_identifier)?;
 
-        Ok(get_workload_attributes_from_select_info(selector_info))
+        Ok(get_workload_attributes_from_select_info(&selector_info))
     }
 }
 
@@ -208,35 +208,105 @@ fn canonicalize_pod_uid(uid: &str) -> String {
     uid
 }
 
-fn get_workload_attributes_from_select_info(selector_info: SelectorInfo) -> WorkloadAttributes {
-    let mut selectors = BTreeMap::new();
-    let selectors_vec = vec![
-        WorkloadSelector::NameSpace(selector_info.namespace),
-        WorkloadSelector::ServiceAccount(selector_info.service_account_name),
-        WorkloadSelector::PodName(selector_info.pod_name.clone()),
-        WorkloadSelector::PodUID(selector_info.pod_uid),
-        WorkloadSelector::NodeName(selector_info.node_name),
-        WorkloadSelector::PodLabels(selector_info.pod_labels),
-        WorkloadSelector::ContainerName(selector_info.container_name),
-        WorkloadSelector::ContainerImage(selector_info.container_image),
-        WorkloadSelector::PodOwners(selector_info.pod_owner),
-        WorkloadSelector::PodOwnerUIDs(selector_info.pod_owner_uid),
-        WorkloadSelector::PodImages(selector_info.pod_image),
-        WorkloadSelector::PodImageCount(selector_info.pod_image_count),
-        WorkloadSelector::PodInitImages(selector_info.pod_init_image),
-        WorkloadSelector::PodInitImageCount(selector_info.pod_init_image_count),
-    ];
+fn get_workload_attributes_from_select_info(selector_info: &SelectorInfo) -> WorkloadAttributes {
+    let mut selectors = BTreeSet::new();
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::Namespace,
+        &selector_info.namespace,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::ServiceAccount,
+        &selector_info.service_account_name,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::PodName,
+        &selector_info.pod_name,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::PodUID,
+        &selector_info.pod_uid,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::NodeName,
+        &selector_info.node_name,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::ContainerName,
+        &selector_info.container_name,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::ContainerImage,
+        &selector_info.container_image,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::PodImageCount,
+        &selector_info.pod_image_count,
+    ));
+    selectors.insert(build_selector_string(
+        &WorkloadSelectorType::PodInitImageCount,
+        &selector_info.pod_init_image_count,
+    ));
 
-    for selector in selectors_vec {
-        selectors.insert(WorkloadSelectorType::from(&selector), selector);
-    }
+    push_map_into_selectors(
+        &mut selectors,
+        &selector_info.pod_labels,
+        &WorkloadSelectorType::PodLabels,
+    );
+    push_set_into_selectors(
+        &mut selectors,
+        &selector_info.pod_owner,
+        &WorkloadSelectorType::PodOwners,
+    );
+    push_set_into_selectors(
+        &mut selectors,
+        &selector_info.pod_owner_uid,
+        &WorkloadSelectorType::PodOwnerUIDs,
+    );
+    push_set_into_selectors(
+        &mut selectors,
+        &selector_info.pod_image,
+        &WorkloadSelectorType::PodImages,
+    );
+    push_set_into_selectors(
+        &mut selectors,
+        &selector_info.pod_init_image,
+        &WorkloadSelectorType::PodInitImages,
+    );
 
     info!(
         "Workload {} was attested successfully",
         selector_info.pod_name
     );
+    debug!("Found the following selectors for workload {:?}", selectors);
 
     WorkloadAttributes { selectors }
+}
+
+fn push_map_into_selectors<'a, A>(
+    selectors: &mut BTreeSet<String>,
+    map: &BTreeMap<String, String>,
+    selector_type: &'a A,
+) where
+    &'a A: ToString + Clone,
+{
+    for (key, value) in map {
+        let map = format!("{}:{}", key, value);
+        let selector = build_selector_string(&selector_type, &map);
+        selectors.insert(selector);
+    }
+}
+
+fn push_set_into_selectors<'a, A>(
+    selectors: &mut BTreeSet<String>,
+    set: &BTreeSet<String>,
+    selector_type: &'a A,
+) where
+    &'a A: ToString + Clone,
+{
+    for value in set {
+        let selector = build_selector_string(&selector_type, &value);
+        selectors.insert(selector);
+    }
 }
 
 fn get_selector_info(
@@ -445,101 +515,55 @@ mod tests {
             .unwrap()
             .selectors;
 
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::NameSpace)
-                .unwrap(),
-            &WorkloadSelector::NameSpace("namespace".to_string())
+        let namespace = build_selector_string(&WorkloadSelectorType::Namespace, "namespace");
+        assert!(workload_selectors.contains(&namespace));
+
+        let service_account = build_selector_string(
+            &WorkloadSelectorType::ServiceAccount,
+            "iotedge-spiffe-agent",
         );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::ServiceAccount)
-                .unwrap(),
-            &WorkloadSelector::ServiceAccount("iotedge-spiffe-agent".to_string())
+        assert!(workload_selectors.contains(&service_account));
+
+        let service_account = build_selector_string(&WorkloadSelectorType::PodName, "pod_name");
+        assert!(workload_selectors.contains(&service_account));
+
+        let pod_uid = build_selector_string(
+            &WorkloadSelectorType::PodUID,
+            "75dbabec-9510-11ec-b909-0242ac120002",
         );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodName)
-                .unwrap(),
-            &WorkloadSelector::PodName("pod_name".to_string())
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodUID)
-                .unwrap(),
-            &WorkloadSelector::PodUID("75dbabec-9510-11ec-b909-0242ac120002".to_string())
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::NodeName)
-                .unwrap(),
-            &WorkloadSelector::NodeName("node_name".to_string())
-        );
-        let mut pod_label = BTreeMap::new();
-        pod_label.insert("pod-name".to_string(), "pod".to_string());
-        pod_label.insert("shoudbefiltered".to_string(), "shoudbefiltered".to_string());
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodLabels)
-                .unwrap(),
-            &WorkloadSelector::PodLabels(pod_label)
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::ContainerName)
-                .unwrap(),
-            &WorkloadSelector::ContainerName("container_name".to_string())
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::ContainerImage)
-                .unwrap(),
-            &WorkloadSelector::ContainerImage("image".to_string())
-        );
-        let mut pod_owners = BTreeSet::new();
-        pod_owners.insert("kind:name".to_string());
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodOwners)
-                .unwrap(),
-            &WorkloadSelector::PodOwners(pod_owners)
-        );
-        let mut pod_uid = BTreeSet::new();
-        pod_uid.insert("kind:uid".to_string());
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodOwnerUIDs)
-                .unwrap(),
-            &WorkloadSelector::PodOwnerUIDs(pod_uid)
-        );
-        let mut pod_images = BTreeSet::new();
-        pod_images.insert("ubuntu:latest".to_string());
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodImages)
-                .unwrap(),
-            &WorkloadSelector::PodImages(pod_images)
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodImageCount)
-                .unwrap(),
-            &WorkloadSelector::PodImageCount(1)
-        );
-        let mut pod_init_images = BTreeSet::new();
-        pod_init_images.insert("debian:latest".to_string());
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodInitImages)
-                .unwrap(),
-            &WorkloadSelector::PodInitImages(pod_init_images)
-        );
-        assert_eq!(
-            workload_selectors
-                .get(&WorkloadSelectorType::PodInitImageCount)
-                .unwrap(),
-            &WorkloadSelector::PodInitImageCount(1)
-        );
+        assert!(workload_selectors.contains(&pod_uid));
+
+        let node_name = build_selector_string(&WorkloadSelectorType::NodeName, "node_name");
+        assert!(workload_selectors.contains(&node_name));
+
+        let pod_label = build_selector_string(&WorkloadSelectorType::PodLabels, "pod-name:pod");
+        assert!(workload_selectors.contains(&pod_label));
+
+        let container_name =
+            build_selector_string(&WorkloadSelectorType::ContainerName, "container_name");
+        assert!(workload_selectors.contains(&container_name));
+
+        let container_image = build_selector_string(&WorkloadSelectorType::ContainerImage, "image");
+        assert!(workload_selectors.contains(&container_image));
+
+        let pod_owners = build_selector_string(&WorkloadSelectorType::PodOwners, "kind:name");
+        assert!(workload_selectors.contains(&pod_owners));
+
+        let pod_owner_uid = build_selector_string(&WorkloadSelectorType::PodOwnerUIDs, "kind:uid");
+        assert!(workload_selectors.contains(&pod_owner_uid));
+
+        let pod_images = build_selector_string(&WorkloadSelectorType::PodImages, "ubuntu:latest");
+        assert!(workload_selectors.contains(&pod_images));
+
+        let image_count = build_selector_string(&WorkloadSelectorType::PodImageCount, "1");
+        assert!(workload_selectors.contains(&image_count));
+
+        let pod_init_images =
+            build_selector_string(&WorkloadSelectorType::PodInitImages, "debian:latest");
+        assert!(workload_selectors.contains(&pod_init_images));
+
+        let init_image_count = build_selector_string(&WorkloadSelectorType::PodInitImageCount, "1");
+        assert!(workload_selectors.contains(&init_image_count));
     }
 
     #[test]

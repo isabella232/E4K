@@ -16,26 +16,24 @@ pub mod k8s;
 use std::sync::Arc;
 
 use agent_config::NodeAttestationConfig;
-use core_objects::JWTSVIDCompact;
-use spiffe_server_client::Client;
+#[cfg(feature = "tests")]
+use mockall::automock;
 
 pub struct NodeAttestatorFactory {}
 
 impl NodeAttestatorFactory {
     #[must_use]
-    pub fn get(
-        config: &NodeAttestationConfig,
-        server_api_client: Arc<dyn Client + Sync + Send>,
-    ) -> Arc<dyn NodeAttestation + Send + Sync> {
+    pub fn get(config: &NodeAttestationConfig) -> Arc<dyn NodeAttestation> {
         match config {
             NodeAttestationConfig::Sat(config) | NodeAttestationConfig::Psat(config) => {
-                Arc::new(k8s::NodeAttestation::new(config, server_api_client))
+                Arc::new(k8s::NodeAttestation::new(config))
             }
         }
     }
 }
 
+#[cfg_attr(feature = "tests", automock)]
 #[async_trait::async_trait]
 pub trait NodeAttestation: Sync + Send {
-    async fn attest_agent(&self) -> Result<JWTSVIDCompact, Box<dyn std::error::Error + Send>>;
+    async fn get_attestation_token(&self) -> Result<String, Box<dyn std::error::Error + Send>>;
 }

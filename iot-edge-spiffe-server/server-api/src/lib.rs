@@ -10,9 +10,8 @@
     clippy::too_many_lines
 )]
 
-use catalog::Catalog;
-use core_objects::SPIFFEID;
 use http_common::Connector;
+use identity_matcher::IdentityMatcher;
 use node_attestation_server::NodeAttestation;
 use server_config::Config;
 use std::{io, sync::Arc};
@@ -20,8 +19,7 @@ use svid_factory::SVIDFactory;
 use tokio::task::JoinHandle;
 use trust_bundle_builder::TrustBundleBuilder;
 
-pub mod create_agent_jwt;
-pub mod create_workload_jwt;
+pub mod create_workload_jwts;
 mod error;
 mod http;
 
@@ -29,18 +27,16 @@ const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
 pub async fn start_server_api(
     config: &Config,
-    catalog: Arc<dyn Catalog + Sync + Send>,
     svid_factory: Arc<SVIDFactory>,
     trust_bundle_builder: Arc<TrustBundleBuilder>,
-    node_attestation: Arc<dyn NodeAttestation + Sync + Send>,
-    iotedge_server_spiffe_id: SPIFFEID,
+    node_attestation: Arc<dyn NodeAttestation>,
+    identity_matcher: Arc<IdentityMatcher>,
 ) -> Result<JoinHandle<Result<(), std::io::Error>>, io::Error> {
     let api = Api {
-        catalog,
         svid_factory,
         trust_bundle_builder,
         node_attestation,
-        iotedge_server_spiffe_id,
+        identity_matcher,
     };
 
     let service = http::Service { api };
@@ -71,9 +67,8 @@ pub async fn start_server_api(
 
 #[derive(Clone)]
 struct Api {
-    catalog: Arc<dyn Catalog + Sync + Send>,
     svid_factory: Arc<SVIDFactory>,
     trust_bundle_builder: Arc<TrustBundleBuilder>,
-    node_attestation: Arc<dyn NodeAttestation + Sync + Send>,
-    iotedge_server_spiffe_id: SPIFFEID,
+    node_attestation: Arc<dyn NodeAttestation>,
+    identity_matcher: Arc<IdentityMatcher>,
 }

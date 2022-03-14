@@ -256,6 +256,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "strum_macros",
 ]
 
 [[package]]
@@ -635,6 +636,12 @@ checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
 dependencies = [
  "unicode-segmentation",
 ]
+
+[[package]]
+name = "heck"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
 name = "hermit-abi"
@@ -1299,8 +1306,7 @@ dependencies = [
  "core-objects",
  "futures-util",
  "matches",
- "server-agent-api",
- "spiffe-server-client",
+ "mockall",
  "tempdir",
  "thiserror",
  "tokio",
@@ -1643,7 +1649,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62941722fb675d463659e49c4f3fe1fe792ff24fe5bbaa9c08cd3b98a1c354f5"
 dependencies = [
  "bytes",
- "heck",
+ "heck 0.3.3",
  "itertools",
  "lazy_static",
  "log",
@@ -1837,6 +1843,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
+
+[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2024,6 +2036,7 @@ dependencies = [
  "identity-matcher",
  "key-manager",
  "key-store",
+ "kube",
  "log",
  "matches",
  "mock-kube",
@@ -2057,6 +2070,7 @@ dependencies = [
  "catalog",
  "core-objects",
  "futures-util",
+ "identity-matcher",
  "k8s-openapi",
  "key-manager",
  "key-store",
@@ -2153,6 +2167,19 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "strum_macros"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6878079b17446e4d3eba6192bb0a2950d5b14f0ed8424b852310e5a94345d0ef"
+dependencies = [
+ "heck 0.4.0",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn",
+]
 
 [[package]]
 name = "svid-factory"
@@ -2813,6 +2840,7 @@ dependencies = [
  "log",
  "matches",
  "mio",
+ "node-attestation-agent",
  "serde",
  "serde_json",
  "server-agent-api",

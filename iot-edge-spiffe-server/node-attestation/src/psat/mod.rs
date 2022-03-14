@@ -2,10 +2,9 @@
 
 pub mod error;
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
-use catalog::NodeSelectorType;
-use core_objects::SPIFFEID;
+use core_objects::{build_selector_string, NodeSelectorType};
 use k8s_openapi::api::{
     authentication::v1::{TokenReview, TokenReviewStatus},
     core::v1::{Node, Pod},
@@ -16,13 +15,10 @@ use kube::{Api, Client};
 #[cfg(any(test, feature = "tests"))]
 use mock_kube::{Api, Client};
 
-use log::info;
+use log::{debug, info};
 use server_config::NodeAttestationConfigPsat;
 
-use crate::{
-    psat::error::MissingField, AgentAttributes, NodeAttestation as NodeAttestationTrait,
-    NodeSelector,
-};
+use crate::{psat::error::MissingField, AgentAttributes, NodeAttestation as NodeAttestationTrait};
 
 use error::Error;
 
@@ -45,20 +41,18 @@ pub struct NodeAttestation {
     audience: String,
     allowed_node_label_keys: BTreeSet<String>,
     allowed_pod_label_keys: BTreeSet<String>,
-    trust_domain: String,
     cluster_name: String,
     client: Client,
 }
 
 impl NodeAttestation {
     #[must_use]
-    pub fn new(config: &NodeAttestationConfigPsat, trust_domain: String, client: Client) -> Self {
+    pub fn new(config: &NodeAttestationConfigPsat, client: Client) -> Self {
         NodeAttestation {
             service_account_allow_list: config.service_account_allow_list.clone(),
             audience: config.audience.clone(),
             allowed_node_label_keys: config.allowed_node_label_keys.clone(),
             allowed_pod_label_keys: config.allowed_pod_label_keys.clone(),
-            trust_domain,
             cluster_name: config.cluster_name.clone(),
             client,
         }
@@ -187,42 +181,72 @@ impl NodeAttestation {
 
         let selector_info = self.get_selector_info(token_review_status).await?;
 
-        let mut selectors = HashMap::new();
-        let selectors_vec = vec![
-            NodeSelector::Cluster(selector_info.cluster_name.clone()),
-            NodeSelector::AgentNameSpace(selector_info.namespace),
-            NodeSelector::AgentServiceAccount(selector_info.service_account_name),
-            NodeSelector::AgentPodName(selector_info.pod_name.clone()),
-            NodeSelector::AgentPodUID(selector_info.pod_uid),
-            NodeSelector::AgentNodeIP(selector_info.node_ip),
-            NodeSelector::AgentNodeName(selector_info.node_name),
-            NodeSelector::AgentNodeUID(selector_info.node_uid.clone()),
-            NodeSelector::AgentNodeLabels(selector_info.node_labels),
-            NodeSelector::AgentPodLabels(selector_info.pod_labels),
-        ];
+        let mut selectors = BTreeSet::new();
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::Cluster,
+            &selector_info.cluster_name,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentNameSpace,
+            &selector_info.namespace,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentServiceAccount,
+            &selector_info.service_account_name,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentPodName,
+            &selector_info.pod_name,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentPodUID,
+            &selector_info.pod_uid,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentNodeIP,
+            &selector_info.node_ip,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentNodeName,
+            &selector_info.node_name,
+        ));
+        selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentNodeUID,
+            &selector_info.node_uid,
+        ));
 
-        for selector in selectors_vec {
-            selectors.insert(NodeSelectorType::from(&selector), selector);
-        }
-
-        let path = format!(
-            "iotedge/spiffe-agent/k8s-psat/{}/{}",
-            selector_info.cluster_name, selector_info.node_uid
+        push_map_into_selectors(
+            &mut selectors,
+            &selector_info.node_labels,
+            &NodeSelectorType::AgentNodeLabels,
         );
-        let spiffe_id = SPIFFEID {
-            trust_domain: self.trust_domain.clone(),
-            path,
-        };
+        push_map_into_selectors(
+            &mut selectors,
+            &selector_info.pod_labels,
+            &NodeSelectorType::AgentPodLabels,
+        );
 
         info!(
             "IoTEdge SPIFFE Agent {} was attested successfully",
             selector_info.pod_name
         );
+        debug!("Found the following selectors for workload {:?}", selectors);
 
-        Ok(AgentAttributes {
-            spiffe_id,
-            selectors,
-        })
+        Ok(AgentAttributes { selectors })
+    }
+}
+
+fn push_map_into_selectors<'a, A>(
+    selectors: &mut BTreeSet<String>,
+    map: &BTreeMap<String, String>,
+    selector_type: &'a A,
+) where
+    &'a A: ToString + Clone,
+{
+    for (key, value) in map {
+        let map = format!("{}:{}", key, value);
+        let selector = build_selector_string(&selector_type, map);
+        selectors.insert(selector);
     }
 }
 
@@ -240,7 +264,6 @@ impl NodeAttestationTrait for NodeAttestation {
 
 #[cfg(test)]
 mod tests {
-    use catalog::NodeSelectorType;
     use core_objects::CONFIG_DEFAULT_PATH;
     use matches::assert_matches;
     use mock_kube::{get_nodes, get_pods, get_token_review, get_token_review_status};
@@ -257,7 +280,7 @@ mod tests {
         };
 
         let client = Client::try_default().await.unwrap();
-        NodeAttestation::new(&node_attestation_config, config.trust_domain, client)
+        NodeAttestation::new(&node_attestation_config, client)
     }
 
     #[tokio::test]
@@ -274,54 +297,51 @@ mod tests {
 
         let resp = node_attestation.auth_agent("dummy token").await.unwrap();
 
-        assert_eq!(&resp.spiffe_id.to_string(), "iotedge/iotedge/spiffe-agent/k8s-psat/demo-cluster/14b57414-9516-11ec-b909-0242ac120002");
+        let cluster_selector = build_selector_string(&NodeSelectorType::Cluster, "demo-cluster");
+        assert!(resp.selectors.contains(&cluster_selector));
 
-        if let NodeSelector::Cluster(cluster_name) = &resp.selectors[&NodeSelectorType::Cluster] {
-            assert_eq!(cluster_name, "demo-cluster");
-        }
-        if let NodeSelector::AgentNameSpace(namespace) =
-            &resp.selectors[&NodeSelectorType::AgentNameSpace]
-        {
-            assert_eq!(namespace, "namespace");
-        }
-        if let NodeSelector::AgentServiceAccount(service_account_name) =
-            &resp.selectors[&NodeSelectorType::AgentServiceAccount]
-        {
-            assert_eq!(service_account_name, "iotedge-spiffe-agent");
-        }
-        if let NodeSelector::AgentPodName(pod_name) =
-            &resp.selectors[&NodeSelectorType::AgentPodName]
-        {
-            assert_eq!(pod_name, "pod_name");
-        }
-        if let NodeSelector::AgentPodUID(pod_uid) = &resp.selectors[&NodeSelectorType::AgentPodUID]
-        {
-            assert_eq!(pod_uid, "75dbabec-9510-11ec-b909-0242ac120002");
-        }
-        if let NodeSelector::AgentNodeIP(node_ip) = &resp.selectors[&NodeSelectorType::AgentNodeIP]
-        {
-            assert_eq!(node_ip, "127.0.0.1");
-        }
-        if let NodeSelector::AgentNodeName(node_name) =
-            &resp.selectors[&NodeSelectorType::AgentNodeName]
-        {
-            assert_eq!(node_name, "node_name");
-        }
-        if let NodeSelector::AgentNodeUID(node_uid) =
-            &resp.selectors[&NodeSelectorType::AgentNodeUID]
-        {
-            assert_eq!(node_uid, "14b57414-9516-11ec-b909-0242ac120002");
-        }
-        if let NodeSelector::AgentPodLabels(pod_labels) =
-            &resp.selectors[&NodeSelectorType::AgentPodLabels]
-        {
-            assert_eq!(pod_labels["pod-name"], "pod");
-        }
-        if let NodeSelector::AgentNodeLabels(node_labels) =
-            &resp.selectors[&NodeSelectorType::AgentNodeLabels]
-        {
-            assert_eq!(node_labels["node-name"], "node");
-        }
+        let namespace_selector =
+            build_selector_string(&NodeSelectorType::AgentNameSpace, "namespace");
+        assert!(resp.selectors.contains(&namespace_selector));
+
+        let service_account = build_selector_string(
+            &NodeSelectorType::AgentServiceAccount,
+            "iotedge-spiffe-agent",
+        );
+        assert!(resp.selectors.contains(&service_account));
+
+        let pod_name = build_selector_string(&NodeSelectorType::AgentPodName, "pod_name");
+        assert!(resp.selectors.contains(&pod_name));
+
+        let pod_uid = build_selector_string(
+            &NodeSelectorType::AgentPodUID,
+            "75dbabec-9510-11ec-b909-0242ac120002",
+        );
+        assert!(resp.selectors.contains(&pod_uid));
+
+        let node_ip = build_selector_string(&NodeSelectorType::AgentNodeIP, "127.0.0.1");
+        assert!(resp.selectors.contains(&node_ip));
+
+        let node_name = build_selector_string(&NodeSelectorType::AgentNodeName, "node_name");
+        assert!(resp.selectors.contains(&node_name));
+
+        let node_uid = build_selector_string(
+            &NodeSelectorType::AgentNodeUID,
+            "14b57414-9516-11ec-b909-0242ac120002",
+        );
+        assert!(resp.selectors.contains(&node_uid));
+
+        let pod_labels = build_selector_string(
+            &NodeSelectorType::AgentPodLabels,
+            &format!("{}:{}", "pod-name", "pod"),
+        );
+        assert!(resp.selectors.contains(&pod_labels));
+
+        let node_labels = build_selector_string(
+            &NodeSelectorType::AgentNodeLabels,
+            &format!("{}:{}", "node-name", "node"),
+        );
+        assert!(resp.selectors.contains(&node_labels));
     }
 
     #[tokio::test]

@@ -53,5 +53,7 @@ async fn main() {
     }
 
     let request = JwtsvidRequest::default();
-    client.fetch_jwtsvid(request).await.unwrap();
+    let response = client.fetch_jwtsvid(request).await.unwrap();
+    let svids = response.into_inner().svids;
+    info!("Got svids {:?}", svids);
 }

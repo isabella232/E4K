@@ -13,19 +13,19 @@ log = "0.4"
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 
-
 admin-api = { path = "../admin-api" }
-server-api = { path = "../server-api" }
 catalog = { path = "../catalog" }
-server-config = { path = "../config" }
+core-objects = { path = "../../common/core-objects" }
+identity-matcher = { path = "../identity-matcher" }
 key-manager = { path = "../key-manager" }
 key-store = { path = "../key-store" }
 mock-kube = { path = "../../tests/mocks/kube", optional = true }
 node-attestation-server = { path = "../node-attestation" }
+server-api = { path = "../server-api" }
+server-config = { path = "../config" }
 svid-factory = { path = "../svid-factory" }
 trust-bundle-builder = { path = "../trust-bundle-builder" }
 
-core-objects = { path = "../../common/core-objects" }
 logger = { git = "https://github.com/Azure/iot-identity-service" }
 
 [dev-dependencies]

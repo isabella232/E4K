@@ -14,7 +14,6 @@
 pub mod k8s;
 
 use agent_config::WorkloadAttestationConfig;
-use core_objects::{WorkloadSelector, WorkloadSelectorType};
 
 #[cfg(not(any(test, feature = "tests")))]
 use kube::Client;
@@ -23,11 +22,11 @@ use mock_kube::Client;
 #[cfg(feature = "tests")]
 use mockall::automock;
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeSet, sync::Arc};
 
 #[derive(Clone, Debug, Default)]
 pub struct WorkloadAttributes {
-    pub selectors: BTreeMap<WorkloadSelectorType, WorkloadSelector>,
+    pub selectors: BTreeSet<String>,
 }
 
 pub struct WorkloadAttestatorFactory {}
@@ -38,7 +37,7 @@ impl WorkloadAttestatorFactory {
         config: &WorkloadAttestationConfig,
         node_name: String,
         client: Client,
-    ) -> Arc<dyn WorkloadAttestation + Send + Sync> {
+    ) -> Arc<dyn WorkloadAttestation> {
         match config {
             WorkloadAttestationConfig::K8s(config) => {
                 Arc::new(k8s::WorkloadAttestation::new(config, node_name, client))

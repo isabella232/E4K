@@ -18,33 +18,24 @@ use kube::Client;
 #[cfg(any(test, feature = "tests"))]
 use mock_kube::Client;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeSet, sync::Arc};
 
-use catalog::NodeSelectorType;
-use core_objects::{NodeSelector, SPIFFEID};
 use server_config::NodeAttestationConfig;
 
 #[derive(Clone, Debug)]
 pub struct AgentAttributes {
-    pub spiffe_id: SPIFFEID,
-    pub selectors: HashMap<NodeSelectorType, NodeSelector>,
+    pub selectors: BTreeSet<String>,
 }
 
 pub struct NodeAttestatorFactory {}
 
 impl NodeAttestatorFactory {
     #[must_use]
-    pub fn get(
-        config: &NodeAttestationConfig,
-        trust_domain: &str,
-        client: Client,
-    ) -> Arc<dyn NodeAttestation + Send + Sync> {
+    pub fn get(config: &NodeAttestationConfig, client: Client) -> Arc<dyn NodeAttestation> {
         match config {
-            NodeAttestationConfig::Psat(config) => Arc::new(psat::NodeAttestation::new(
-                config,
-                trust_domain.to_string(),
-                client,
-            )),
+            NodeAttestationConfig::Psat(config) => {
+                Arc::new(psat::NodeAttestation::new(config, client))
+            }
             NodeAttestationConfig::Sat(_config) => unimplemented!(),
         }
     }

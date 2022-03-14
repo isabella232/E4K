@@ -14,6 +14,8 @@ pub enum Error {
     UdsClientPID,
     #[error("Failed to get selectors from workload PID {0}")]
     WorkloadAttestation(Box<dyn std::error::Error + Send>),
+    #[error("Failed to get attestor token for agent {0}")]
+    NodeAttestation(Box<dyn std::error::Error + Send>),
     #[error("Process ID is negative {0}")]
     NegativePID(TryFromIntError),
     #[error("Failed to fetch new JWT-SVIDs for the workload {0}")]

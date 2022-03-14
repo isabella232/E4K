@@ -20,7 +20,7 @@ spiffe_id = "agents"
 [entry.attestation_config]
 type = "NODE" 
 [entry.attestation_config.content]
-value = [{ type = "CLUSTER", content = "dummy"}]
+value = ["CLUSTER:dummy"]
 plugin = "SAT"
 
 [[entry]]
@@ -28,7 +28,7 @@ spiffe_id = "pod1"
 [entry.attestation_config]
 type = "WORKLOAD" 
 [entry.attestation_config.content]
-value = [{ type = "PODNAME", content = "pod1"}]
+value = ["PODNAME:pod1"]
 plugin = "K8S"
 parent_id = "agents"
 
@@ -37,6 +37,6 @@ spiffe_id = "pod2"
 [entry.attestation_config]
 type = "WORKLOAD" 
 [entry.attestation_config.content]
-value = [{ type = "PODNAME", content = "pod2"}]
+value = ["PODNAME:pod1"]
 plugin = "K8S"
 parent_id = "agents"

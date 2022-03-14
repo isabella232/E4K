@@ -16,6 +16,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 tonic = "0.6"
 
 core-objects = { path = "../../common/core-objects" }
+node-attestation-agent = { path = "../node-attestation" }
 server-agent-api = { path = "../../common/server-agent-api" }
 spiffe-server-client = { path = "../spiffe-server-client" } 
 workload-api = { path = "../../common/workload-api" }
@@ -27,6 +28,7 @@ matches = "0.1.9"
 mio = { version = "0.8.0", features = ["net"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs","net"] }
 
+node-attestation-agent = { path = "../node-attestation", features = ["tests"] }
 spiffe-server-client = { path = "../spiffe-server-client", features = ["tests"] } 
 workload-attestation = { path = "../workload-attestation", features = ["tests"] } 
 

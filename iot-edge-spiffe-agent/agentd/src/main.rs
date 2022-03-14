@@ -60,8 +60,7 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     let server_api_client =
         ServerClientFactory::get(&config.server_config).map_err(Error::CreatingServerclient)?;
-    let _node_attestation =
-        NodeAttestatorFactory::get(&config.node_attestation_config, server_api_client.clone());
+    let node_attestation = NodeAttestatorFactory::get(&config.node_attestation_config);
     let workload_attestation =
         WorkloadAttestatorFactory::get(&config.workload_attestation_config, node_name, kube_client);
 
@@ -84,6 +83,7 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
         .add_service(SpiffeWorkloadApiServer::new(WorkloadAPIServer::new(
             server_api_client,
             workload_attestation,
+            node_attestation,
         )))
         .serve_with_incoming(uds_stream)
         .await?;

@@ -10,35 +10,31 @@
     clippy::too_many_lines
 )]
 
-mod error;
+pub mod error;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeSet, sync::Arc};
 
-use catalog::{Entries, NodeSelectorType};
-use core_objects::{
-    AttestationConfig, NodeSelector, RegistrationEntry, WorkloadSelector, WorkloadSelectorType,
-    SPIFFEID,
-};
+use catalog::Catalog;
+use core_objects::{AttestationConfig, RegistrationEntry};
 use error::Error;
 
 const PAGE_SIZE: usize = 100;
 
 pub struct IdentityMatcher {
-    catalog: Arc<dyn Entries + Sync + Send>,
+    catalog: Arc<dyn Catalog>,
 }
 
 impl IdentityMatcher {
     #[must_use]
-    pub fn new(catalog: Arc<dyn Entries + Sync + Send>) -> Self {
+    pub fn new(catalog: Arc<dyn Catalog>) -> Self {
         Self { catalog }
     }
 
-    pub async fn get_identities_on_behalf(
+    pub async fn get_entry_id_from_selectors(
         &self,
-        workload_selectors: &[WorkloadSelector],
-        parent_selectors: &HashMap<NodeSelectorType, NodeSelector>,
-    ) -> Result<Vec<SPIFFEID>, Error> {
-        let workload_selectors = map_selectors(workload_selectors);
+        workload_selectors: &BTreeSet<String>,
+        parent_selectors: &BTreeSet<String>,
+    ) -> Result<Vec<RegistrationEntry>, Error> {
         let mut identities = Vec::new();
 
         loop {
@@ -53,12 +49,12 @@ impl IdentityMatcher {
             for entry in entries {
                 // Check if the workload selectors are matching with the entry.
                 let result = self
-                    .match_entry(&workload_selectors, &entry, parent_selectors)
+                    .match_entry(workload_selectors, &entry, parent_selectors)
                     .await?;
 
-                // If we have a match add the spiffe ID to the list
+                // If we have a match add the ID to the list
                 if result {
-                    identities.push(entry.spiffe_id);
+                    identities.push(entry);
                 }
             }
 
@@ -70,9 +66,9 @@ impl IdentityMatcher {
 
     async fn match_entry(
         &self,
-        workload_selectors: &HashMap<WorkloadSelectorType, &WorkloadSelector>,
+        workload_selectors: &BTreeSet<String>,
         entry: &RegistrationEntry,
-        parent_selectors: &HashMap<NodeSelectorType, NodeSelector>,
+        parent_selectors: &BTreeSet<String>,
     ) -> Result<bool, Error> {
         // Get the selectors for the entry and the parent entry. Those selectors will be checked againt the selectors of
         // the workload and the parent making the request on behalf of the workload.
@@ -86,8 +82,8 @@ impl IdentityMatcher {
 
             if let AttestationConfig::Node(node_attestation) = &parent_entry.attestation_config {
                 Ok(
-                    match_workload_selectors(&workload_attestation.value, workload_selectors)
-                        & match_node_selectors(&node_attestation.value, parent_selectors),
+                    match_selectors(&workload_attestation.value, workload_selectors)
+                        & match_selectors(&node_attestation.value, parent_selectors),
                 )
             } else {
                 // This error is when a regular workload is parented to another workload.
@@ -103,67 +99,23 @@ impl IdentityMatcher {
     }
 }
 
-fn match_node_selectors(
-    entry_selectors: &[NodeSelector],
-    selectors: &HashMap<NodeSelectorType, NodeSelector>,
-) -> bool {
+fn match_selectors(entry_selectors: &[String], selectors: &BTreeSet<String>) -> bool {
     for expected_selector in entry_selectors {
-        let selector_type = NodeSelectorType::from(expected_selector);
-        let current_selector = if let Some(selector) = selectors.get(&selector_type) {
-            selector
-        } else {
-            return false;
-        };
-
-        if current_selector != expected_selector {
+        if !selectors.contains(expected_selector) {
             return false;
         }
     }
 
     true
-}
-
-// Considered doing a common match selectors for both workload and node like this:
-// fn match_selectors<A, B, F>(entry_selectors: &Vec<B>, selectors: &HashMap<A, &B>, f: F) -> bool
-// Put the hash map is slightly different. Changing the hash map to have a common function would be more expensive.
-fn match_workload_selectors(
-    entry_selectors: &[WorkloadSelector],
-    selectors: &HashMap<WorkloadSelectorType, &WorkloadSelector>,
-) -> bool {
-    for expected_selector in entry_selectors {
-        let selector_type = WorkloadSelectorType::from(expected_selector);
-        let current_selector = if let Some(selector) = selectors.get(&selector_type) {
-            selector
-        } else {
-            return false;
-        };
-
-        if *current_selector != expected_selector {
-            return false;
-        }
-    }
-
-    true
-}
-
-fn map_selectors(
-    selectors: &'_ [WorkloadSelector],
-) -> HashMap<WorkloadSelectorType, &'_ WorkloadSelector> {
-    let mut selectors_map = HashMap::new();
-    for selector in selectors {
-        let selector_type = WorkloadSelectorType::from(selector);
-        selectors_map.insert(selector_type, selector);
-    }
-
-    selectors_map
 }
 
 #[cfg(test)]
 mod tests {
-    use catalog::inmemory;
+    use catalog::{inmemory, Entries};
     use core_objects::{
-        EntryNodeAttestation, EntryWorkloadAttestation, NodeAttestationPlugin, NodeSelector,
-        WorkloadAttestationPlugin::K8s, CONFIG_DEFAULT_PATH,
+        build_selector_string, EntryNodeAttestation, EntryWorkloadAttestation,
+        NodeAttestationPlugin, NodeSelectorType, WorkloadAttestationPlugin::K8s,
+        WorkloadSelectorType, CONFIG_DEFAULT_PATH, SPIFFEID,
     };
     use matches::assert_matches;
     use server_config::Config;
@@ -198,8 +150,8 @@ mod tests {
             spiffe_id: parent_spiffe_id.clone(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster(CLUSTER_NAME.to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    build_selector_string(&NodeSelectorType::Cluster, CLUSTER_NAME),
+                    build_selector_string(&NodeSelectorType::AgentNameSpace, "selector2"),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
@@ -218,7 +170,10 @@ mod tests {
         entry1.spiffe_id.path = POD_NAME1.to_string();
         entry1.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: vec![WorkloadSelector::PodName(POD_NAME1.to_string())],
+            value: vec![build_selector_string(
+                &WorkloadSelectorType::PodName,
+                POD_NAME1,
+            )],
             plugin: K8s,
         });
         catalog.batch_create(vec![entry1.clone()]).await.unwrap();
@@ -229,7 +184,10 @@ mod tests {
         entry2.spiffe_id.path = POD_NAME2.to_string();
         entry2.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: vec![WorkloadSelector::PodName(POD_NAME2.to_string())],
+            value: vec![build_selector_string(
+                &WorkloadSelectorType::PodName,
+                POD_NAME2,
+            )],
             plugin: K8s,
         });
         catalog.batch_create(vec![entry2.clone()]).await.unwrap();
@@ -240,7 +198,10 @@ mod tests {
         group.spiffe_id.path = GROUP_NAME.to_string();
         group.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
-            value: vec![WorkloadSelector::ServiceAccount(GROUP_NAME.to_string())],
+            value: vec![build_selector_string(
+                &WorkloadSelectorType::PodName,
+                GROUP_NAME,
+            )],
             plugin: K8s,
         });
         catalog.batch_create(vec![group.clone()]).await.unwrap();
@@ -248,11 +209,11 @@ mod tests {
         (IdentityMatcher::new(catalog), parent, entry1, entry2, group)
     }
 
-    fn check_if_spiffe_id_in_response(response: Vec<SPIFFEID>, spiffe_id: &SPIFFEID) -> bool {
+    fn check_if_entry_id_in_response(response: Vec<RegistrationEntry>, id: &str) -> bool {
         let mut result: bool = false;
 
-        for resp_spiffe_id in response {
-            if resp_spiffe_id.to_string() == spiffe_id.to_string() {
+        for entries in response {
+            if entries.id == id {
                 result = true;
             }
         }
@@ -260,15 +221,24 @@ mod tests {
         result
     }
 
-    fn get_workload_selectors(entry: &RegistrationEntry) -> Vec<WorkloadSelector> {
-        if let AttestationConfig::Workload(workload_attestation) = &entry.attestation_config {
-            workload_attestation.value.clone()
-        } else {
-            panic!("Error, entry should be workload attestation");
+    fn get_workload_selectors(entry: &RegistrationEntry) -> BTreeSet<String> {
+        let selectors_vec =
+            if let AttestationConfig::Workload(workload_attestation) = &entry.attestation_config {
+                workload_attestation.value.clone()
+            } else {
+                panic!("Error, entry should be workload attestation");
+            };
+
+        let mut selectors = BTreeSet::new();
+
+        for selector in selectors_vec {
+            selectors.insert(selector);
         }
+
+        selectors
     }
 
-    fn get_node_selectors(entry: &RegistrationEntry) -> HashMap<NodeSelectorType, NodeSelector> {
+    fn get_node_selectors(entry: &RegistrationEntry) -> BTreeSet<String> {
         let selectors_vec =
             if let AttestationConfig::Node(node_attestation) = &entry.attestation_config {
                 node_attestation.value.clone()
@@ -276,17 +246,17 @@ mod tests {
                 panic!("Error, entry should be node attestation");
             };
 
-        let mut selectors = HashMap::new();
+        let mut selectors = BTreeSet::new();
 
         for selector in selectors_vec {
-            selectors.insert(NodeSelectorType::from(&selector), selector);
+            selectors.insert(selector);
         }
 
         selectors
     }
 
     #[tokio::test]
-    async fn get_identities_on_behalf_happy_path_test() {
+    async fn get_entry_id_from_selectors_happy_path_test() {
         let (identity_matcher, parent, entry1, _entry2, group) = init_test().await;
 
         let entry1_selectors = get_workload_selectors(&entry1);
@@ -295,41 +265,38 @@ mod tests {
         let mut workload_selectors = entry1_selectors.clone();
         // Push some other dummy selectors. Additional selectors should be ignored.
         // The important part is that all the entry selectors need to be mapped.
-        workload_selectors.push(WorkloadSelector::ServiceAccount("dummy".to_string()));
+        workload_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::ServiceAccount,
+            "dummy",
+        ));
 
         let mut parent_selectors = parent_selectors.clone();
-        parent_selectors.insert(
-            NodeSelectorType::AgentServiceAccount,
-            NodeSelector::AgentServiceAccount("dummy".to_string()),
-        );
-        let identities = identity_matcher
-            .get_identities_on_behalf(&workload_selectors, &parent_selectors)
+        parent_selectors.insert(build_selector_string(
+            &NodeSelectorType::AgentServiceAccount,
+            "dummy",
+        ));
+        let entries = identity_matcher
+            .get_entry_id_from_selectors(&workload_selectors, &parent_selectors)
             .await
             .unwrap();
 
-        assert_eq!(1, identities.len());
-        assert!(check_if_spiffe_id_in_response(
-            identities,
-            &entry1.spiffe_id.clone()
-        ));
+        assert_eq!(1, entries.len());
+        assert!(check_if_entry_id_in_response(entries, &entry1.id));
 
         // Now the workload should match both pod1 and group identity
         let mut group_selectors = get_workload_selectors(&group);
         workload_selectors.append(&mut group_selectors);
-        let identities = identity_matcher
-            .get_identities_on_behalf(&workload_selectors, &parent_selectors)
+        let entries = identity_matcher
+            .get_entry_id_from_selectors(&workload_selectors, &parent_selectors)
             .await
             .unwrap();
-        assert_eq!(2, identities.len());
-        assert!(check_if_spiffe_id_in_response(
-            identities.clone(),
-            &entry1.spiffe_id
-        ));
-        assert!(check_if_spiffe_id_in_response(identities, &group.spiffe_id));
+        assert_eq!(2, entries.len());
+        assert!(check_if_entry_id_in_response(entries.clone(), &entry1.id));
+        assert!(check_if_entry_id_in_response(entries, &group.id));
     }
 
     #[tokio::test]
-    async fn get_identities_on_behalf_error_match_test() {
+    async fn get_entry_id_from_selectors_error_match_test() {
         let (identity_matcher, parent, entry1, _entry2, _group) = init_test().await;
 
         let entry1_selectors = get_workload_selectors(&entry1);
@@ -338,13 +305,16 @@ mod tests {
         let mut workload_selectors = entry1_selectors.clone();
         // Push some other dummy selectors. Additional selectors should be ignored.
         // The important part is that all the entry selectors need to be mapped.
-        workload_selectors.push(WorkloadSelector::ServiceAccount("dummy".to_string()));
+        workload_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::ServiceAccount,
+            "dummy",
+        ));
 
         let mut parent_selectors = parent_selectors.clone();
-        parent_selectors.insert(
-            NodeSelectorType::AgentServiceAccount,
-            NodeSelector::AgentServiceAccount("dummy".to_string()),
-        );
+        parent_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::ServiceAccount,
+            "dummy",
+        ));
 
         // Delete parent entry to create an error.
         identity_matcher
@@ -353,7 +323,7 @@ mod tests {
             .await
             .unwrap();
         let error = identity_matcher
-            .get_identities_on_behalf(&workload_selectors, &parent_selectors)
+            .get_entry_id_from_selectors(&workload_selectors, &parent_selectors)
             .await
             .unwrap_err();
         assert_matches!(error, Error::CatalogGetEntries(_));
@@ -363,12 +333,11 @@ mod tests {
     async fn match_entry_happy_path() {
         let (identity_matcher, parent, entry1, _entry2, _group) = init_test().await;
 
-        let entry1_selectors = &get_workload_selectors(&entry1);
-        let workload_selectors = map_selectors(entry1_selectors);
+        let workload_selectors = &get_workload_selectors(&entry1);
         let parent_selectors = get_node_selectors(&parent);
 
         let result = identity_matcher
-            .match_entry(&workload_selectors, &entry1, &parent_selectors)
+            .match_entry(workload_selectors, &entry1, &parent_selectors)
             .await
             .unwrap();
         assert!(result);
@@ -379,8 +348,7 @@ mod tests {
         let (identity_matcher, parent, entry1, _entry2, _group) = init_test().await;
 
         // Test the error case. What happens we have a workload entry that refers to a non-existing parent entry.
-        let entry1_selectors = &get_workload_selectors(&entry1);
-        let workload_selectors = map_selectors(entry1_selectors);
+        let workload_selectors = &get_workload_selectors(&entry1);
         let parent_selectors = get_node_selectors(&parent);
 
         // Delete parent entry to create an error.
@@ -391,7 +359,7 @@ mod tests {
             .unwrap();
 
         let error = identity_matcher
-            .match_entry(&workload_selectors, &entry1, &parent_selectors)
+            .match_entry(workload_selectors, &entry1, &parent_selectors)
             .await
             .unwrap_err();
         assert_matches!(error, Error::CatalogGetEntries(_));
@@ -402,12 +370,11 @@ mod tests {
         let (identity_matcher, parent, entry1, _entry2, _group) = init_test().await;
 
         // We try to put a parent as the entry. It should never match.
-        let entry1_selectors = &get_workload_selectors(&entry1);
-        let workload_selectors = map_selectors(entry1_selectors);
+        let workload_selectors = &get_workload_selectors(&entry1);
         let parent_selectors = get_node_selectors(&parent);
 
         let result = identity_matcher
-            .match_entry(&workload_selectors, &parent, &parent_selectors)
+            .match_entry(workload_selectors, &parent, &parent_selectors)
             .await
             .unwrap();
         assert!(!result);
@@ -418,12 +385,14 @@ mod tests {
         let (identity_matcher, parent, _entry1, _entry2, _group) = init_test().await;
 
         // In this test we put a one entry with workload that do not match it.
-        let mut workload_selectors = HashMap::new();
+        let mut workload_selectors = BTreeSet::new();
         let parent_selectors = get_node_selectors(&parent);
 
         // entry1 specifies a pod name, so a wrong selector type will not match
-        let selector = &WorkloadSelector::PodUID("dummy".to_string());
-        workload_selectors.insert(WorkloadSelectorType::PodUID, selector);
+        workload_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::PodUID,
+            "dummy",
+        ));
         let result = identity_matcher
             .match_entry(&workload_selectors, &parent, &parent_selectors)
             .await
@@ -431,8 +400,10 @@ mod tests {
         assert!(!result);
 
         // This time try with the correct selector but wong value.
-        let selector = &WorkloadSelector::PodName("dummy".to_string());
-        workload_selectors.insert(WorkloadSelectorType::PodName, selector);
+        workload_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::PodName,
+            "dummy",
+        ));
         let result = identity_matcher
             .match_entry(&workload_selectors, &parent, &parent_selectors)
             .await
@@ -446,16 +417,15 @@ mod tests {
 
         // Here the entry matches perfectly but parent do not match. Meaning the agent is forbidden
         // from requesting an svid for this entry.
-        let entry1_selectors = &get_workload_selectors(&entry1);
-        let workload_selectors = map_selectors(entry1_selectors);
-        let mut parent_selectors = HashMap::new();
-        parent_selectors.insert(
-            NodeSelectorType::AgentPodName,
-            NodeSelector::AgentPodName("dummy".to_string()),
-        );
+        let workload_selectors = &get_workload_selectors(&entry1);
+        let mut parent_selectors = BTreeSet::new();
+        parent_selectors.insert(build_selector_string(
+            &WorkloadSelectorType::ServiceAccount,
+            "dummy",
+        ));
 
         let result = identity_matcher
-            .match_entry(&workload_selectors, &entry1, &parent_selectors)
+            .match_entry(workload_selectors, &entry1, &parent_selectors)
             .await
             .unwrap();
         assert!(!result);

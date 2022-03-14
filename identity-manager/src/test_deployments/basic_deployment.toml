@@ -19,5 +19,5 @@ spiffe_id = "agent1"
 [entry.attestation_config]
 type = "NODE" 
 [entry.attestation_config.content]
-value = [{ type = "CLUSTER", content = "dummy"}]
+value = ["CLUSTER:dummy"]
 plugin = "SAT"

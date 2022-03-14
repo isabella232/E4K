@@ -24,7 +24,7 @@ const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
 pub async fn start_admin_api(
     config: &Config,
-    catalog: Arc<dyn Catalog + Sync + Send>,
+    catalog: Arc<dyn Catalog>,
 ) -> Result<JoinHandle<Result<(), std::io::Error>>, io::Error> {
     let api = Api { catalog };
 
@@ -54,5 +54,5 @@ pub async fn start_admin_api(
 
 #[derive(Clone)]
 struct Api {
-    catalog: Arc<dyn Catalog + Sync + Send>,
+    catalog: Arc<dyn Catalog>,
 }

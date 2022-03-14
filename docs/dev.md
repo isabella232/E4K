@@ -53,6 +53,9 @@ export OPENSSL_DIR=/musl
 Build:
 cargo build --target=x86_64-unknown-linux-musl
 
+Run:
+export AZIOT_LOG=Debug
+./executale_path
 
 ### Export executable in pods
 With minikube, there are 2 mounts level:

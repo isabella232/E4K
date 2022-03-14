@@ -10,19 +10,20 @@
     clippy::too_many_lines
 )]
 
+use identity_matcher::IdentityMatcher;
 #[cfg(not(any(test, feature = "tests")))]
 use kube::Client;
 #[cfg(any(test, feature = "tests"))]
 use mock_kube::Client;
 
 use catalog::{Catalog, CatalogFactory};
-use core_objects::{get_epoch_time, SPIFFEID};
+use core_objects::get_epoch_time;
 use error::Error;
 use futures_util::{future, pin_mut};
 use key_manager::KeyManager;
 use key_store::KeyStoreFactory;
 use log::{error, info};
-use node_attestation_server::{NodeAttestation, NodeAttestatorFactory};
+use node_attestation_server::NodeAttestatorFactory;
 use server_config::Config;
 use std::{error::Error as StdError, sync::Arc, time::Duration};
 use svid_factory::SVIDFactory;
@@ -57,12 +58,9 @@ async fn main() {
 async fn main_inner() -> Result<(), Box<dyn StdError>> {
     let config = Config::load_config(CONFIG_DEFAULT_PATH).map_err(Error::ErrorParsingConfig)?;
 
-    let catalog: Arc<dyn Catalog + Send + Sync> = CatalogFactory::get(&config.catalog);
+    let catalog: Arc<dyn Catalog> = CatalogFactory::get(&config.catalog);
 
-    let iotedge_server_spiffe_id = SPIFFEID {
-        trust_domain: config.trust_domain.clone(),
-        path: config.server_spiffe_id.to_string(),
-    };
+    let identity_matcher = Arc::new(IdentityMatcher::new(catalog.clone()));
 
     let key_store = KeyStoreFactory::get(&config.key_store);
 
@@ -75,11 +73,7 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
 
     // Infer the runtime environment and try to create a Kubernetes Client
     let client = Client::try_default().await?;
-    let node_attestation: Arc<dyn NodeAttestation + Send + Sync> = NodeAttestatorFactory::get(
-        &config.node_attestation_config,
-        &config.trust_domain,
-        client,
-    );
+    let node_attestation = NodeAttestatorFactory::get(&config.node_attestation_config, client);
 
     let trust_bundle_builder = TrustBundleBuilder::new(&config, catalog.clone());
 
@@ -115,11 +109,10 @@ async fn main_inner() -> Result<(), Box<dyn StdError>> {
     let admin_api_handle = admin_api::start_admin_api(&config, catalog.clone()).await?;
     let server_api_handle = server_api::start_server_api(
         &config,
-        catalog,
         svid_factory,
         trust_bundle_builder,
         node_attestation,
-        iotedge_server_spiffe_id,
+        identity_matcher,
     )
     .await?;
 

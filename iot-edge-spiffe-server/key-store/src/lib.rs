@@ -24,7 +24,7 @@ pub struct KeyStoreFactory {}
 
 impl KeyStoreFactory {
     #[must_use]
-    pub fn get(config: &KeyStoreConfig) -> Arc<dyn KeyStore + Send + Sync> {
+    pub fn get(config: &KeyStoreConfig) -> Arc<dyn KeyStore> {
         match config {
             KeyStoreConfig::Disk(config) => Arc::new(disk::KeyStore::new(config)),
             KeyStoreConfig::Memory() => unimplemented!(),

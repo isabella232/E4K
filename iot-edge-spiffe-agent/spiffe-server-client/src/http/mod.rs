@@ -5,10 +5,9 @@ pub mod error;
 use crate::Client as ClientTrait;
 
 use agent_config::ServerConfig;
-use core_objects::{JWTSVIDCompact, SPIFFEID};
 use error::Error;
 use http_common::{Connector, ErrorBody, HttpRequest};
-use server_agent_api::{attest_agent, create_workload_jwt, get_trust_bundle, ApiVersion};
+use server_agent_api::{create_workload_jwts, get_trust_bundle, ApiVersion};
 use url::Url;
 
 pub struct Client {
@@ -17,8 +16,8 @@ pub struct Client {
 }
 
 #[must_use]
-pub fn attest_agent_uri() -> String {
-    format!("attest-agent?api-version={}", ApiVersion::V2022_06_01)
+pub fn create_workload_jwts_uri() -> String {
+    format!("workload-jwts?api-version={}", ApiVersion::V2022_06_01)
 }
 
 #[must_use]
@@ -45,22 +44,21 @@ impl Client {
 
 #[async_trait::async_trait]
 impl ClientTrait for Client {
-    async fn create_workload_jwt(
+    async fn create_workload_jwts(
         &self,
-        _request: create_workload_jwt::Request,
-    ) -> Result<create_workload_jwt::Response, Box<dyn std::error::Error + Send>> {
-        //!! TODO Place holder
-        Ok(create_workload_jwt::Response {
-            jwt_svid: JWTSVIDCompact {
-                token: "dummy".to_string(),
-                spiffe_id: SPIFFEID {
-                    trust_domain: "dummy".to_string(),
-                    path: "dummy".to_string(),
-                },
-                expiry: 0,
-                issued_at: 0,
-            },
-        })
+        request: create_workload_jwts::Request,
+    ) -> Result<create_workload_jwts::Response, Box<dyn std::error::Error + Send>> {
+        let address_url = format!("{}{}", self.address_url, &create_workload_jwts_uri(),);
+        let request = HttpRequest::post(self.connector.clone(), &address_url, Some(request));
+
+        let response = request
+            .json_response()
+            .await
+            .map_err(|err| Box::new(Error::CreateWorkloadJWTs(err)) as _)?;
+
+        response
+            .parse::<create_workload_jwts::Response, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])
+            .map_err(|err| Box::new(Error::DeserializingCreateWorkloadJWTsResponse(err)) as _)
     }
 
     async fn get_trust_bundle(
@@ -84,27 +82,5 @@ impl ClientTrait for Client {
         response
             .parse::<get_trust_bundle::Response, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])
             .map_err(|err| Box::new(Error::DeserializingGetTrustBundleResponse(err)) as _)
-    }
-
-    async fn attest_agent(
-        &self,
-        auth: attest_agent::Auth,
-    ) -> Result<attest_agent::Response, Box<dyn std::error::Error + Send>> {
-        let address_url = format!(
-            "{}{}&token={}",
-            self.address_url,
-            &attest_agent_uri(),
-            auth.token
-        );
-        let request: HttpRequest<(), _> = HttpRequest::get(self.connector.clone(), &address_url);
-
-        let response = request
-            .json_response()
-            .await
-            .map_err(|err| Box::new(Error::AttestAgent(err)) as _)?;
-
-        response
-            .parse::<attest_agent::Response, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])
-            .map_err(|err| Box::new(Error::DeserializingAttestAgentResponse(err)) as _)
     }
 }

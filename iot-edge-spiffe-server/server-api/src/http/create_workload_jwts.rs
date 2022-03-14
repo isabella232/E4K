@@ -3,15 +3,14 @@
 use http::{Extensions, StatusCode};
 use http_common::{server, DynRangeBounds};
 use serde::de::IgnoredAny;
-use server_agent_api::ApiVersion;
+use server_agent_api::{create_workload_jwts, ApiVersion};
 use std::borrow::Cow;
 
-use crate::Api;
+use crate::{error::Error, Api};
 
 use super::uri;
 
 pub(super) struct Route {
-    token: Option<String>,
     api: Api,
 }
 
@@ -20,7 +19,7 @@ impl server::Route for Route {
     type ApiVersion = ApiVersion;
     type Service = super::Service;
     type DeleteBody = IgnoredAny;
-    type PostBody = IgnoredAny;
+    type PostBody = create_workload_jwts::Request;
     type PutBody = IgnoredAny;
 
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion> {
@@ -30,45 +29,38 @@ impl server::Route for Route {
     fn from_uri(
         service: &Self::Service,
         path: &str,
-        query: &[(Cow<'_, str>, Cow<'_, str>)],
+        _query: &[(Cow<'_, str>, Cow<'_, str>)],
         _extensions: &Extensions,
     ) -> Option<Self> {
-        if path != uri::ATTEST_AGENT {
+        if path != uri::CREATE_WORKLOAD_JTWS {
             return None;
         }
-
-        let mut token: Option<String> = None;
-
-        for q in query.iter() {
-            if &q.0 as &str == "token" {
-                token = Some(q.1.to_string());
-            }
-        }
-
         Some(Route {
-            token,
             api: service.api.clone(),
         })
     }
 
-    async fn get(self) -> server::RouteResponse {
-        let token = if let Some(token) = self.token {
-            token
-        } else {
-            return Err(server::Error {
-                status_code: StatusCode::UNAUTHORIZED,
-                message: "missing auth token".into(),
-            });
-        };
+    async fn post(self, body: Option<Self::PostBody>) -> server::RouteResponse {
+        let body = body.ok_or_else(|| server::Error {
+            status_code: StatusCode::BAD_REQUEST,
+            message: "missing request body".into(),
+        })?;
 
-        let res = self.api.attest_agent(&token).await;
+        let res = self.api.create_workload_jwts(body).await;
         let res = match res {
             Ok(res) => res,
             Err(err) => {
+                if let Error::AttestAgent(_) = err {
+                    return Err(server::Error {
+                        status_code: StatusCode::FORBIDDEN,
+                        message: format!("Error doing agent attestation: {}", err).into(),
+                    });
+                }
+
                 return Err(server::Error {
-                    status_code: StatusCode::UNAUTHORIZED,
-                    message: format!("Error while attesting agent: {}", err).into(),
-                })
+                    status_code: StatusCode::INTERNAL_SERVER_ERROR,
+                    message: format!("Error when creating new jwt: {}", err).into(),
+                });
             }
         };
 

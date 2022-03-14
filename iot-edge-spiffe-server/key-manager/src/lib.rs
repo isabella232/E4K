@@ -43,8 +43,8 @@ pub struct Slots {
 
 pub struct KeyManager {
     trust_domain: String,
-    catalog: Arc<dyn Catalog + Send + Sync>,
-    pub key_store: Arc<dyn KeyStore + Send + Sync>,
+    catalog: Arc<dyn Catalog>,
+    pub key_store: Arc<dyn KeyStore>,
     pub jwt_key_type: KeyType,
     pub jwt_key_ttl: u64,
     pub slots: RwLock<Slots>,
@@ -53,8 +53,8 @@ pub struct KeyManager {
 impl KeyManager {
     pub async fn new(
         config: &Config,
-        catalog: Arc<dyn Catalog + Send + Sync>,
-        key_store: Arc<dyn KeyStore + Send + Sync>,
+        catalog: Arc<dyn Catalog>,
+        key_store: Arc<dyn KeyStore>,
         current_time: u64,
     ) -> Result<Self, Error> {
         let id = Uuid::new_v4().to_string();
@@ -306,8 +306,8 @@ mod tests {
 
     async fn run_stage1(
         manager: &KeyManager,
-        catalog: Arc<dyn Catalog + Send + Sync>,
-        key_store: Arc<dyn KeyStore + Send + Sync>,
+        catalog: Arc<dyn Catalog>,
+        key_store: Arc<dyn KeyStore>,
     ) -> (String, String) {
         manager
             .rotate_periodic_inner(manager.jwt_key_ttl / 2 + 1)
@@ -357,8 +357,8 @@ mod tests {
 
     async fn run_stage3<'a>(
         manager: &'a KeyManager,
-        catalog: Arc<dyn Catalog + Send + Sync>,
-        key_store: Arc<dyn KeyStore + Send + Sync>,
+        catalog: Arc<dyn Catalog>,
+        key_store: Arc<dyn KeyStore>,
         current_jwt_key_id: &'a str,
     ) {
         manager

@@ -31,6 +31,7 @@ trust-bundle-builder = { path = "../trust-bundle-builder" }
 http-common = { git = "https://github.com/Azure/iot-identity-service" }
 
 [dev-dependencies]
+kube = { version = "0.69.0", features = ["runtime", "derive"] }
 mock-kube = { path = "../../tests/mocks/kube" }
 matches = "0.1.9"
 node-attestation-server = { path = "../node-attestation", features = ["tests"]  }

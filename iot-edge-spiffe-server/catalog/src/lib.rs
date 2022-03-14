@@ -11,9 +11,9 @@
     clippy::missing_panics_doc
 )]
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use core_objects::{NodeSelector, RegistrationEntry, JWK, SPIFFEID};
+use core_objects::{RegistrationEntry, JWK};
 use server_config::CatalogConfig;
 
 pub mod inmemory;
@@ -22,7 +22,7 @@ pub struct CatalogFactory {}
 
 impl CatalogFactory {
     #[must_use]
-    pub fn get(config: &CatalogConfig) -> Arc<dyn Catalog + Send + Sync> {
+    pub fn get(config: &CatalogConfig) -> Arc<dyn Catalog> {
         match config {
             CatalogConfig::Disk => unimplemented!(),
             CatalogConfig::Memory => Arc::new(inmemory::Catalog::new()),
@@ -30,7 +30,7 @@ impl CatalogFactory {
     }
 }
 
-pub trait Catalog: Entries + TrustBundleStore + NodeSelectors {}
+pub trait Catalog: Entries + TrustBundleStore {}
 
 /// Entries are writen from the identity manager into the server. Entries contains all the necessary information
 /// to identify a workload and issue a new about a SPIFFE identity to it.
@@ -169,69 +169,4 @@ pub trait TrustBundleStore: Sync + Send {
         &self,
         trust_domain: &str,
     ) -> Result<(Vec<JWK>, usize), Box<dyn std::error::Error + Send>>;
-}
-
-/// The NodeSelectors trait is implemented by the catalog to store parent and workload selectors.
-/// Those selectors are then used when a request is to request a token on behalf of a workload.
-/// When an Agent make a request on behalf of a workload, the workload + agent selectors are provided in the request.
-/// Those selectors need to match all the parent + workload selectors in the entry.
-#[async_trait::async_trait]
-pub trait NodeSelectors: Sync + Send {
-    /// get all selectors for the requested SPIFFEID
-    ///
-    /// ## Arguments
-    /// * `spiffe_id` - The SPIFFE ID to target the selectors.
-    ///
-    /// ## Returns
-    /// * `Ok(HashMap<NodeSelectorType, NodeSelector>)` - Hash of selectors keyed by selector type
-    /// * `Err(e)` - an error occurred while getting the selectors
-    async fn get_selectors(
-        &self,
-        spiffe_id: &SPIFFEID,
-    ) -> Result<HashMap<NodeSelectorType, NodeSelector>, Box<dyn std::error::Error + Send>>;
-
-    /// set selectors for the specified SPIFFEID
-    ///
-    /// ## Arguments
-    /// * `spiffe_id` - The SPIFFE ID to target the selectors.
-    ///
-    /// ## Returns
-    /// * `Ok(HashMap<NodeSelectorType, NodeSelector>)` - Hash of selectors keyed by selector type
-    /// * `Err(e)` - an error occurred while getting the selectors
-    async fn set_selectors(
-        &self,
-        spiffe_id: &SPIFFEID,
-        selectors: HashMap<NodeSelectorType, NodeSelector>,
-    ) -> Result<(), Box<dyn std::error::Error + Send>>;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum NodeSelectorType {
-    Cluster,
-    AgentNameSpace,
-    AgentServiceAccount,
-    AgentPodName,
-    AgentPodUID,
-    AgentNodeIP,
-    AgentNodeName,
-    AgentNodeUID,
-    AgentNodeLabels,
-    AgentPodLabels,
-}
-
-impl From<&NodeSelector> for NodeSelectorType {
-    fn from(selector: &NodeSelector) -> Self {
-        match selector {
-            NodeSelector::Cluster(_) => NodeSelectorType::Cluster,
-            NodeSelector::AgentNameSpace(_) => NodeSelectorType::AgentNameSpace,
-            NodeSelector::AgentServiceAccount(_) => NodeSelectorType::AgentServiceAccount,
-            NodeSelector::AgentPodName(_) => NodeSelectorType::AgentPodName,
-            NodeSelector::AgentPodUID(_) => NodeSelectorType::AgentPodUID,
-            NodeSelector::AgentNodeIP(_) => NodeSelectorType::AgentNodeIP,
-            NodeSelector::AgentNodeName(_) => NodeSelectorType::AgentNodeName,
-            NodeSelector::AgentNodeUID(_) => NodeSelectorType::AgentNodeUID,
-            NodeSelector::AgentNodeLabels(_) => NodeSelectorType::AgentNodeLabels,
-            NodeSelector::AgentPodLabels(_) => NodeSelectorType::AgentPodLabels,
-        }
-    }
 }

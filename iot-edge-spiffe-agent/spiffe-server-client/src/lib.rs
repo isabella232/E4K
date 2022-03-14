@@ -19,14 +19,14 @@ use std::sync::Arc;
 use mockall::automock;
 
 use agent_config::ServerConfig;
-use server_agent_api::{attest_agent, create_workload_jwt, get_trust_bundle};
+use server_agent_api::{create_workload_jwts, get_trust_bundle};
 
 pub struct ServerClientFactory {}
 
 impl ServerClientFactory {
     pub fn get(
         server_config: &ServerConfig,
-    ) -> Result<Arc<dyn Client + Sync + Send>, Box<dyn std::error::Error + Send>> {
+    ) -> Result<Arc<dyn Client>, Box<dyn std::error::Error + Send>> {
         let http_client = http::Client::new(server_config).map_err(|err| Box::new(err) as _)?;
 
         Ok(Arc::new(http_client))
@@ -36,15 +36,10 @@ impl ServerClientFactory {
 #[cfg_attr(feature = "tests", automock)]
 #[async_trait::async_trait]
 pub trait Client: Sync + Send {
-    async fn create_workload_jwt(
+    async fn create_workload_jwts(
         &self,
-        request: create_workload_jwt::Request,
-    ) -> Result<create_workload_jwt::Response, Box<dyn std::error::Error + Send>>;
-
-    async fn attest_agent(
-        &self,
-        token: attest_agent::Auth,
-    ) -> Result<attest_agent::Response, Box<dyn std::error::Error + Send>>;
+        request: create_workload_jwts::Request,
+    ) -> Result<create_workload_jwts::Response, Box<dyn std::error::Error + Send>>;
 
     async fn get_trust_bundle(
         &self,

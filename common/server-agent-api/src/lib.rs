@@ -48,20 +48,22 @@ pub mod attest_agent {
     }
 }
 
-pub mod create_workload_jwt {
-    use core_objects::{JWTSVIDCompact, WorkloadSelector, WorkloadSelectorType, SPIFFEID};
-    use std::collections::BTreeMap;
+pub mod create_workload_jwts {
+    use std::collections::BTreeSet;
+
+    use core_objects::{JWTSVIDCompact, SPIFFEID};
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
-        pub id: String,
+        pub attestation_token: String,
+        pub workload_spiffe_id: Option<String>,
         pub audiences: Vec<SPIFFEID>,
-        pub selectors: BTreeMap<WorkloadSelectorType, WorkloadSelector>,
+        pub selectors: BTreeSet<String>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
-        pub jwt_svid: JWTSVIDCompact,
+        pub jwt_svids: Vec<JWTSVIDCompact>,
     }
 }
 

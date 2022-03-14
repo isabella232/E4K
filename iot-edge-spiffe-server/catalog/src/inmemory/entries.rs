@@ -156,7 +156,7 @@ impl Entries for Catalog {
 mod tests {
 
     use core_objects::{
-        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelector, SPIFFEID,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelectorType, SPIFFEID,
     };
     use matches::assert_matches;
 
@@ -174,8 +174,8 @@ mod tests {
             spiffe_id,
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
-                    NodeSelector::Cluster("selector1".to_string()),
-                    NodeSelector::AgentNameSpace("selector2".to_string()),
+                    NodeSelectorType::Cluster.to_string(),
+                    NodeSelectorType::AgentNameSpace.to_string(),
                 ],
                 plugin: NodeAttestationPlugin::Sat,
             }),
