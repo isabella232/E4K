@@ -163,6 +163,7 @@ impl KeyManager {
 
     async fn create_key_and_add_to_catalog(&self, id: &str) -> Result<(), Error> {
         let mut x = openssl::bn::BigNum::new().map_err(Error::BigNumGeneration)?;
+
         let mut y = openssl::bn::BigNum::new().map_err(Error::BigNumGeneration)?;
         let mut ctx = openssl::bn::BigNumContext::new().map_err(Error::BigNumGeneration)?;
         let ec_key = self
@@ -179,8 +180,8 @@ impl KeyManager {
             .affine_coordinates_gfp(group, &mut x, &mut y, &mut ctx)
             .map_err(Error::GenerateXandY)?;
 
-        let x_b64 = base64::encode_config(x.to_string(), base64::STANDARD_NO_PAD);
-        let y_b64 = base64::encode_config(y.to_string(), base64::STANDARD_NO_PAD);
+        let x_b64 = base64::encode_config(x.to_vec(), base64::STANDARD_NO_PAD);
+        let y_b64 = base64::encode_config(y.to_vec(), base64::STANDARD_NO_PAD);
         let (kty, crv) = self.jwt_key_type.into();
 
         let jwk = JWK {

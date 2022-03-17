@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use core_objects::{
-        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, RegistrationEntry, SPIFFEID,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, RegistrationEntry,
     };
     use spiffe_server_admin_client::{SpiffeConnector, SpiffeHttpClient};
     use std::sync::Arc;
@@ -33,16 +33,12 @@ mod tests {
             .map(|id| RegistrationEntry {
                 id: id.clone(),
                 other_identities: Vec::new(),
-                spiffe_id: SPIFFEID {
-                    trust_domain: "trust_domain".to_owned(),
-                    path: "path".to_owned(),
-                },
+                spiffe_id_path: "path".to_string(),
                 attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),
                 admin: false,
-                ttl: 1028,
                 expires_at: 1028,
                 dns_names: Vec::new(),
                 revision_number: 0,
@@ -93,16 +89,12 @@ mod tests {
             .map(|id| RegistrationEntry {
                 id: id.clone(),
                 other_identities: Vec::new(),
-                spiffe_id: SPIFFEID {
-                    trust_domain: "trust_domain".to_owned(),
-                    path: "path".to_owned(),
-                },
+                spiffe_id_path: "path".to_string(),
                 attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                     value: Vec::new(),
                     plugin: NodeAttestationPlugin::Psat,
                 }),
                 admin: false,
-                ttl: 1028,
                 expires_at: 1028,
                 dns_names: Vec::new(),
                 revision_number: 0,

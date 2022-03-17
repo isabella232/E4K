@@ -37,6 +37,7 @@ pub async fn start_server_api(
         trust_bundle_builder,
         node_attestation,
         identity_matcher,
+        trust_domain: Arc::new(config.trust_domain.clone()),
     };
 
     let service = http::Service { api };
@@ -71,4 +72,5 @@ struct Api {
     trust_bundle_builder: Arc<TrustBundleBuilder>,
     node_attestation: Arc<dyn NodeAttestation>,
     identity_matcher: Arc<IdentityMatcher>,
+    trust_domain: Arc<String>,
 }

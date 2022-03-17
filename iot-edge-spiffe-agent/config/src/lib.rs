@@ -19,11 +19,20 @@ pub struct Config {
 
     #[serde(alias = "server-config")]
     pub server_config: ServerConfig,
-    #[serde(alias = "trust-bundle-config")]
-    pub trust_bundle_config: TrustBundleConfig,
-    #[serde(alias = "node-attestation-config")]
+    #[serde(
+        alias = "trust-bundle-manager-config",
+        default = "default_trust_bundle_manager_config"
+    )]
+    pub trust_bundle_config: TrustBundleManagerConfig,
+    #[serde(
+        alias = "node-attestation-config",
+        default = "default_node_attestation_config"
+    )]
     pub node_attestation_config: NodeAttestationConfig,
-    #[serde(alias = "workload-attestation-config")]
+    #[serde(
+        alias = "workload-attestation-config",
+        default = "default_workload_attestation_config"
+    )]
     pub workload_attestation_config: WorkloadAttestationConfig,
 }
 
@@ -36,7 +45,20 @@ pub enum NodeAttestationConfig {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct NodeAttestationConfigK8s {
+    #[serde(default = "default_token_path")]
     pub token_path: String,
+}
+
+fn default_node_attestation_config() -> NodeAttestationConfig {
+    let config = NodeAttestationConfigK8s {
+        token_path: default_token_path(),
+    };
+
+    NodeAttestationConfig::Psat(config)
+}
+
+fn default_token_path() -> String {
+    "/var/run/secrets/tokens/iotedge-spiffe-agent".to_string()
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -53,6 +75,15 @@ pub struct WorkloadAttestationConfigK8s {
     pub poll_retry_interval_ms: u64,
 }
 
+fn default_workload_attestation_config() -> WorkloadAttestationConfig {
+    let config = WorkloadAttestationConfigK8s {
+        max_poll_attempt: default_max_poll_attempt(),
+        poll_retry_interval_ms: default_poll_retry_interval_ms(),
+    };
+
+    WorkloadAttestationConfig::K8s(config)
+}
+
 fn default_max_poll_attempt() -> usize {
     60
 }
@@ -62,11 +93,26 @@ fn default_poll_retry_interval_ms() -> u64 {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type", content = "content", rename_all = "UPPERCASE")]
-pub enum TrustBundleConfig {
-    Path(String),
-    Url(String),
-    InsecureBootstrap,
+pub struct TrustBundleManagerConfig {
+    #[serde(default = "default_max_retry")]
+    pub max_retry: usize,
+    #[serde(default = "default_wait_retry_sec")]
+    pub wait_retry_sec: u64,
+}
+
+fn default_trust_bundle_manager_config() -> TrustBundleManagerConfig {
+    TrustBundleManagerConfig {
+        max_retry: default_max_retry(),
+        wait_retry_sec: default_wait_retry_sec(),
+    }
+}
+
+fn default_max_retry() -> usize {
+    3
+}
+
+fn default_wait_retry_sec() -> u64 {
+    2
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

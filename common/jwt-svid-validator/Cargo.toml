@@ -6,7 +6,9 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
-base64 = "0.13"
+async-trait = "0.1"
+base64 = "0.13" 
+mockall = {version = "0.11.0", optional = true}
 openssl = "0.10"
 serde = "1"
 serde_json = "1"
@@ -30,4 +32,4 @@ svid-factory = { path = "../../iot-edge-spiffe-server/svid-factory" }
 trust-bundle-builder = { path = "../../iot-edge-spiffe-server/trust-bundle-builder" }
 
 [features]
-tests = []
+tests = ["mockall"]

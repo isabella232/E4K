@@ -156,22 +156,17 @@ impl Entries for Catalog {
 mod tests {
 
     use core_objects::{
-        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelectorType, SPIFFEID,
+        AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin, NodeSelectorType,
     };
     use matches::assert_matches;
 
     use super::*;
 
     fn init_entry_test() -> (Catalog, RegistrationEntry, RegistrationEntry) {
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
-
         let entry1 = RegistrationEntry {
             id: String::from("id"),
             other_identities: Vec::new(),
-            spiffe_id,
+            spiffe_id_path: "path".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     NodeSelectorType::Cluster.to_string(),
@@ -180,7 +175,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,

@@ -1,0 +1,6 @@
+socket_path = "/run/iotedge/sockets/workloadapi.sock"
+trust_domain = "iotedge"
+
+[server-config]
+address = "iotedge-spiffe-server"
+port = 8443

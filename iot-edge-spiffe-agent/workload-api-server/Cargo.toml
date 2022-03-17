@@ -9,6 +9,7 @@ edition = "2021"
 async-stream = "0.3"
 futures-util = "0.3"
 log = "0.4"
+prost-types = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1.0"
@@ -16,9 +17,11 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 tonic = "0.6"
 
 core-objects = { path = "../../common/core-objects" }
+jwt-svid-validator = { path = "../../common/jwt-svid-validator" }
 node-attestation-agent = { path = "../node-attestation" }
 server-agent-api = { path = "../../common/server-agent-api" }
 spiffe-server-client = { path = "../spiffe-server-client" } 
+trust-bundle-manager = { path = "../trust-bundle-manager" }
 workload-api = { path = "../../common/workload-api" }
 workload-attestation = { path = "../workload-attestation" } 
 
@@ -31,6 +34,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs","n
 node-attestation-agent = { path = "../node-attestation", features = ["tests"] }
 spiffe-server-client = { path = "../spiffe-server-client", features = ["tests"] } 
 workload-attestation = { path = "../workload-attestation", features = ["tests"] } 
+jwt-svid-validator = { path = "../../common/jwt-svid-validator", features = ["tests"] }
 
 [features]
 tests = []

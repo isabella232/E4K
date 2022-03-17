@@ -20,6 +20,10 @@ pub enum Error {
     NegativePID(TryFromIntError),
     #[error("Failed to fetch new JWT-SVIDs for the workload {0}")]
     CreateJWTSVIDs(Box<dyn std::error::Error + Send>),
+    #[error("Validation of JWT-SVID failed: {0}")]
+    ValidateJWTSVIDs(jwt_svid_validator::error::Error),
+    #[error("Error could not serialize identity {0}")]
+    SerdeSerializeIdentity(serde_json::Error),
 }
 
 impl From<Error> for tonic::Status {

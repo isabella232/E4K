@@ -6,7 +6,8 @@ address = "iotedge-spiffe-server"
 port = 8443
 
 [trust-bundle-config]
-type = "INSECUREBOOTSTRAP"
+max_retry = 2
+wait_retry_sec = 0
 
 [node_attestation_config]
 type = "PSAT"

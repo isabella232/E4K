@@ -115,7 +115,7 @@ mod tests {
     use core_objects::{
         build_selector_string, EntryNodeAttestation, EntryWorkloadAttestation,
         NodeAttestationPlugin, NodeSelectorType, WorkloadAttestationPlugin::K8s,
-        WorkloadSelectorType, CONFIG_DEFAULT_PATH, SPIFFEID,
+        WorkloadSelectorType, CONFIG_DEFAULT_PATH,
     };
     use matches::assert_matches;
     use server_config::Config;
@@ -135,19 +135,14 @@ mod tests {
         RegistrationEntry,
         RegistrationEntry,
     ) {
-        let config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
+        let _config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
         let catalog = Arc::new(inmemory::Catalog::new());
-
-        let parent_spiffe_id = SPIFFEID {
-            trust_domain: config.trust_domain.clone(),
-            path: PARENT_NAME.to_string(),
-        };
 
         // Add parent
         let parent = RegistrationEntry {
             id: PARENT_NAME.to_string(),
             other_identities: Vec::new(),
-            spiffe_id: parent_spiffe_id.clone(),
+            spiffe_id_path: PARENT_NAME.to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     build_selector_string(&NodeSelectorType::Cluster, CLUSTER_NAME),
@@ -156,7 +151,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -167,7 +161,7 @@ mod tests {
         // Add pod 1
         let mut entry1 = parent.clone();
         entry1.id = POD_NAME1.to_string();
-        entry1.spiffe_id.path = POD_NAME1.to_string();
+        entry1.spiffe_id_path = POD_NAME1.to_string();
         entry1.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
             value: vec![build_selector_string(
@@ -181,7 +175,7 @@ mod tests {
         // Add pod 2
         let mut entry2 = parent.clone();
         entry2.id = POD_NAME2.to_string();
-        entry2.spiffe_id.path = POD_NAME2.to_string();
+        entry2.spiffe_id_path = POD_NAME2.to_string();
         entry2.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
             value: vec![build_selector_string(
@@ -195,7 +189,7 @@ mod tests {
         // Add group
         let mut group = parent.clone();
         group.id = GROUP_NAME.to_string();
-        group.spiffe_id.path = GROUP_NAME.to_string();
+        group.spiffe_id_path = GROUP_NAME.to_string();
         group.attestation_config = AttestationConfig::Workload(EntryWorkloadAttestation {
             parent_id: PARENT_NAME.to_string(),
             value: vec![build_selector_string(

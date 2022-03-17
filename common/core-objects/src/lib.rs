@@ -12,28 +12,16 @@
 
 use std::{fmt::Display, time::SystemTime};
 
+use field_types::FieldName;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
-pub struct SPIFFEID {
-    pub trust_domain: String,
-    pub path: String,
-}
-
-impl std::fmt::Display for SPIFFEID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}", self.trust_domain, self.path)
-    }
-}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct RegistrationEntry {
     pub id: String,
     pub other_identities: Vec<IdentityTypes>,
-    pub spiffe_id: SPIFFEID,
+    pub spiffe_id_path: String,
     pub attestation_config: AttestationConfig,
     pub admin: bool,
-    pub ttl: u64,
     pub expires_at: u64,
     pub dns_names: Vec<String>,
     pub revision_number: u64,
@@ -134,10 +122,10 @@ pub struct JWTHeader {
     pub jwt_type: JWTType,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, FieldName)]
 pub struct JWTClaims {
-    pub subject: SPIFFEID,
-    pub audience: Vec<SPIFFEID>,
+    pub subject: String,
+    pub audience: Vec<String>,
     pub expiry: u64,
     pub issued_at: u64,
     pub other_identities: Vec<IdentityTypes>,
@@ -191,7 +179,7 @@ pub enum KeyUse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct JWTSVIDCompact {
     pub token: String,
-    pub spiffe_id: SPIFFEID,
+    pub spiffe_id: String,
     pub expiry: u64,
     pub issued_at: u64,
 }

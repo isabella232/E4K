@@ -34,30 +34,16 @@ impl std::str::FromStr for ApiVersion {
     }
 }
 
-pub mod attest_agent {
-    use core_objects::JWTSVIDCompact;
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub struct Auth {
-        pub token: String,
-    }
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub struct Response {
-        pub jwt_svid: JWTSVIDCompact,
-    }
-}
-
 pub mod create_workload_jwts {
     use std::collections::BTreeSet;
 
-    use core_objects::{JWTSVIDCompact, SPIFFEID};
+    use core_objects::JWTSVIDCompact;
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
     pub struct Request {
         pub attestation_token: String,
         pub workload_spiffe_id: Option<String>,
-        pub audiences: Vec<SPIFFEID>,
+        pub audiences: Vec<String>,
         pub selectors: BTreeSet<String>,
     }
 

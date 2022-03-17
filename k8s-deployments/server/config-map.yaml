@@ -13,7 +13,7 @@ data:
     ttl = 10
 
     [trust-bundle]
-    refresh_hint = 1
+    refresh_hint = 10
 
     [key-store]
     type = "Disk"

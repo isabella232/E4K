@@ -17,6 +17,7 @@ use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
 use workload_api::{
     spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, JwtsvidRequest,
+    ValidateJwtsvidRequest,
 };
 
 #[tokio::main]
@@ -52,8 +53,19 @@ async fn main() {
         );
     }
 
-    let request = JwtsvidRequest::default();
+    let request = JwtsvidRequest {
+        audience: vec!["dummy_audience".to_string()],
+        spiffe_id: String::new(),
+    };
     let response = client.fetch_jwtsvid(request).await.unwrap();
     let svids = response.into_inner().svids;
     info!("Got svids {:?}", svids);
+
+    let request = ValidateJwtsvidRequest {
+        audience: "dummy_audience".to_string(),
+        svid: svids[0].svid.clone(),
+    };
+    let response = client.validate_jwtsvid(request).await.unwrap();
+    let claims = response.into_inner();
+    info!("Got claims {:?}", claims);
 }

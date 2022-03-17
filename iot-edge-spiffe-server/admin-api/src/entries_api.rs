@@ -90,7 +90,7 @@ mod tests {
 
     use core_objects::{
         build_selector_string, AttestationConfig, EntryNodeAttestation, NodeAttestationPlugin,
-        NodeSelectorType, RegistrationEntry, SPIFFEID,
+        NodeSelectorType, RegistrationEntry,
     };
 
     use crate::Api;
@@ -101,15 +101,11 @@ mod tests {
         let catalog = Arc::new(catalog::inmemory::Catalog::new());
 
         let api = Api { catalog };
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
 
         let entry = RegistrationEntry {
             id: String::from("id"),
             other_identities: Vec::new(),
-            spiffe_id,
+            spiffe_id_path: "path".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     build_selector_string(&NodeSelectorType::Cluster, "selector1"),
@@ -118,7 +114,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -233,14 +228,11 @@ mod tests {
     #[tokio::test]
     pub async fn list_registration_entries_test_happy_path() {
         let (api, mut entries) = init();
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             other_identities: Vec::new(),
-            spiffe_id,
+            spiffe_id_path: "path".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     build_selector_string(&NodeSelectorType::Cluster, "selector1"),
@@ -249,7 +241,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -297,14 +288,11 @@ mod tests {
     #[tokio::test]
     pub async fn list_registration_entries_test_error_path() {
         let (api, mut entries) = init();
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             other_identities: Vec::new(),
-            spiffe_id,
+            spiffe_id_path: "path".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     build_selector_string(&NodeSelectorType::Cluster, "selector1"),
@@ -313,7 +301,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -336,14 +323,11 @@ mod tests {
     #[tokio::test]
     pub async fn select_list_registration_entries_test_happy_path() {
         let (api, mut entries) = init();
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+
         let entry2 = RegistrationEntry {
             id: String::from("id2"),
             other_identities: Vec::new(),
-            spiffe_id,
+            spiffe_id_path: "path".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec![
                     build_selector_string(&NodeSelectorType::Cluster, "selector1"),
@@ -352,7 +336,6 @@ mod tests {
                 plugin: NodeAttestationPlugin::Sat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,

@@ -28,9 +28,9 @@ Some dummy commands to test and run the server
 working directory: iot-edge-spiffe-server/serverd
 
 ## Add entries into the server:
-curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"1\", \"other_identities\" : [], \"spiffe_id\" : {\"trust_domain\" : \"trust_domain\", \"path\" : \"path\"}, \"admin\": true, \"ttl\" : 0, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true, \"attestation_config\": {\"type\": \"NODE\", \"content\": {\"plugin\": \"PSAT\", \"value\": [\"AGENTSERVICEACCOUNT:iotedge-spiffe-agent\"] }} }]}"
+curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"1\", \"other_identities\" : [], \"spiffe_id_path\" : \"agent\", \"admin\": true, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true, \"attestation_config\": {\"type\": \"NODE\", \"content\": {\"plugin\": \"PSAT\", \"value\": [\"AGENTSERVICEACCOUNT:iotedge-spiffe-agent\"] }} }]}"
 
-curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"2\", \"other_identities\" : [{\"type\": \"IOTHUB\", \"content\": {\"iot_hub_hostname\" : \"myhub\", \"device_id\": \"my_device\", \"module_id\": \"modid\"}}], \"spiffe_id\" : {\"trust_domain\" : \"trust_domain\", \"path\" : \"path\"}, \"admin\": true, \"ttl\" : 0, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true, \"attestation_config\": {\"type\": \"WORKLOAD\", \"content\": {\"plugin\": \"K8S\", \"parent_id\" : \"1\", \"value\": [\"PODLABELS:app:genericnode\"] }} }]}"
+curl --unix-socket api.sock --request POST  http://localhost/entries?api-version=2022-06-01 --header "Content-Type: application/json"  -d "{\"entries\":  [{\"id\" : \"2\", \"other_identities\" : [{\"type\": \"IOTHUB\", \"content\": {\"iot_hub_hostname\" : \"myhub\", \"device_id\": \"my_device\", \"module_id\": \"modid\"}}], \"spiffe_id_path\" : \"genericnode\", \"admin\": true, \"expires_at\" : 0, \"dns_names\" : [\"mydns\"], \"revision_number\" : 0, \"store_svid\" : true, \"attestation_config\": {\"type\": \"WORKLOAD\", \"content\": {\"plugin\": \"K8S\", \"parent_id\" : \"1\", \"value\": [\"PODLABELS:app:genericnode\"] }} }]}"
 
 ## Check entries are entered:
 curl --unix-socket api.sock "http://localhost/entries?api-version=2022-06-01&page_size=10"
@@ -75,7 +75,7 @@ content-type: application/json
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
           "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
-          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "spiffe_id_path" : "string: The SPIFFE ID of the identity described by this entry.(excluding the trust domain"
           "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
@@ -104,7 +104,7 @@ POST   /entries?api-version=2022_06_01
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
           "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
-          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "spiffe_id_path" : "string: The SPIFFE ID of the identity described by this entry.(excluding the trust domain"
           "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
@@ -148,7 +148,7 @@ PUT   /entries?api-version=2022_06_01
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
           "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
-          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "spiffe_id_path" : "string: The SPIFFE ID of the identity described by this entry.(excluding the trust domain"
           "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",
@@ -239,7 +239,7 @@ content-type: application/json
         { 
           "id" : "string: Hash of the entry. Important if product is scaled horizontally. Replicas need to generate the same key",
           "other_identities" : [{ "type": "IOTHUB", "content" : {"iot_hub_hostname": "String", "device_id" : "test", "module_id" : "dummy" }}]
-          "spiffe_id" : "string: The SPIFFE ID of the identity described by this entry."
+          "spiffe_id_path" : "string: The SPIFFE ID of the identity described by this entry.(excluding the trust domain"
           "selectors" : {"type" : "NODE", "content" : {  "Plugin": "PSAT", "value": ["string: selector1", "string: selector2", "...]},
           "ttl" : "uint64, svid time to live",
           "admin" : "bool: Admin workload",

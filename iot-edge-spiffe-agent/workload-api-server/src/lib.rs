@@ -14,14 +14,21 @@ mod error;
 pub mod unix_stream;
 
 use core::pin::Pin;
+use core_objects::{JWTClaims, JWTClaimsFieldName};
 use error::Error;
 use futures_util::Stream;
-use log::info;
+use jwt_svid_validator::JWTSVIDValidator;
+use log::{debug, info};
 use node_attestation_agent::NodeAttestation;
+use prost_types::{value::Kind, ListValue, Struct, Value};
 use server_agent_api::{create_workload_jwts, get_trust_bundle};
 use spiffe_server_client::Client;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 use tonic::{Request, Response};
+use trust_bundle_manager::TrustBundleManager;
 use workload_api::{
     spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtBundlesResponse, Jwtsvid,
     JwtsvidRequest, JwtsvidResponse, ValidateJwtsvidRequest, ValidateJwtsvidResponse,
@@ -40,6 +47,8 @@ pub struct WorkloadAPIServer {
     spiffe_server_client: Arc<dyn Client>,
     workload_attestation: Arc<dyn WorkloadAttestation>,
     node_attestation: Arc<dyn NodeAttestation>,
+    trust_bundle_manager: Arc<TrustBundleManager>,
+    jwt_svid_validator: Arc<dyn JWTSVIDValidator>,
 }
 
 impl WorkloadAPIServer {
@@ -48,11 +57,15 @@ impl WorkloadAPIServer {
         spiffe_server_client: Arc<dyn Client>,
         workload_attestation: Arc<dyn WorkloadAttestation>,
         node_attestation: Arc<dyn NodeAttestation>,
+        trust_bundle_manager: Arc<TrustBundleManager>,
+        jwt_svid_validator: Arc<dyn JWTSVIDValidator>,
     ) -> Self {
         Self {
             spiffe_server_client,
             workload_attestation,
             node_attestation,
+            trust_bundle_manager,
+            jwt_svid_validator,
         }
     }
 
@@ -61,6 +74,9 @@ impl WorkloadAPIServer {
         request: Request<JwtsvidRequest>,
         pid: u32,
     ) -> Result<Response<JwtsvidResponse>, tonic::Status> {
+        let jwt_svid_request = request.into_inner();
+        debug!("Request: {:?}", jwt_svid_request);
+
         let workload_attributes = self
             .workload_attestation
             .attest_workload(pid)
@@ -73,15 +89,15 @@ impl WorkloadAPIServer {
             .await
             .map_err(Error::NodeAttestation)?;
 
-        let workload_spiffe_id = if request.get_ref().spiffe_id.is_empty() {
+        let workload_spiffe_id = if jwt_svid_request.spiffe_id.is_empty() {
             None
         } else {
-            Some(request.get_ref().spiffe_id.clone())
+            Some(jwt_svid_request.spiffe_id.clone())
         };
 
         let request = create_workload_jwts::Request {
             workload_spiffe_id,
-            audiences: Vec::new(),
+            audiences: jwt_svid_request.audience,
             selectors: workload_attributes.selectors,
             attestation_token,
         };
@@ -164,9 +180,29 @@ impl SpiffeWorkloadApi for WorkloadAPIServer {
 
     async fn validate_jwtsvid(
         &self,
-        _request: Request<ValidateJwtsvidRequest>,
+        request: Request<ValidateJwtsvidRequest>,
     ) -> Result<Response<ValidateJwtsvidResponse>, tonic::Status> {
-        todo!()
+        let request = request.into_inner();
+
+        info!("Received request for to validate jwt svid");
+        debug!("SVID: {:?}, Audience: {}", request.svid, request.audience);
+        let trust_bundle = self.trust_bundle_manager.get_cached_trust_bundle().await;
+
+        let audience = request.audience;
+        let jwt_svid_compact = request.svid;
+
+        let jwt_svid = self
+            .jwt_svid_validator
+            .validate(&jwt_svid_compact, &trust_bundle, &audience)
+            .await
+            .map_err(Error::ValidateJWTSVIDs)?;
+
+        let claims = convert_claims_to_prost_type_struct(&jwt_svid.claims)?;
+
+        Ok(Response::new(ValidateJwtsvidResponse {
+            spiffe_id: jwt_svid.claims.subject,
+            claims: Some(claims),
+        }))
     }
 
     type FetchX509SVIDStream = X509ResponseStream;
@@ -181,26 +217,291 @@ impl SpiffeWorkloadApi for WorkloadAPIServer {
     type FetchJWTBundlesStream = JWTResponseStream;
 }
 
+// Ideally we should be able to do this:
+// let struct_json = serde_json::to_string(&jwt_svid).unwrap();
+// let struct_obj: Struct = serde_json::from_str(struct_json.as_str()).unwrap();
+// This is supported by the crate: https://docs.rs/prost-wkt/0.3.0/prost_wkt/#.
+// However, this is not compatible with tonic that we use to create the server/client for Grpc.
+// So we have to use a more "manual" way to generate the Struct.
+//
+// We allow precision loss because value kind for u64 is not supported yet in prost.
+// Instead we cast is into a f64. Which is ok. 52bits mantissa of f64 is good enough for the code to live thousands of years
+// with 0 loss of precision
+#[allow(clippy::cast_precision_loss)]
+fn convert_claims_to_prost_type_struct(claims: &JWTClaims) -> Result<Struct, Error> {
+    let fields = JWTClaims::as_field_name_array();
+
+    let mut inner_struct = BTreeMap::new();
+
+    for field in fields {
+        match field {
+            JWTClaimsFieldName::Subject => inner_struct.insert(
+                JWTClaimsFieldName::Subject.name().to_string(),
+                Value {
+                    kind: Some(Kind::StringValue(claims.subject.to_string())),
+                },
+            ),
+            JWTClaimsFieldName::Audience => {
+                let mut value_array = Vec::new();
+                for spiffe_id in &claims.audience {
+                    value_array.push(Value {
+                        kind: Some(Kind::StringValue(spiffe_id.to_string())),
+                    });
+                }
+                inner_struct.insert(
+                    JWTClaimsFieldName::Audience.name().to_string(),
+                    Value {
+                        kind: Some(Kind::ListValue(ListValue {
+                            values: value_array,
+                        })),
+                    },
+                )
+            }
+            JWTClaimsFieldName::Expiry => inner_struct.insert(
+                JWTClaimsFieldName::Expiry.name().to_string(),
+                Value {
+                    // Allow only here. Mantissa is 54 bit wide, good enough for thousands of years.
+                    kind: Some(Kind::NumberValue(claims.expiry as f64)),
+                },
+            ),
+            JWTClaimsFieldName::IssuedAt => inner_struct.insert(
+                JWTClaimsFieldName::IssuedAt.name().to_string(),
+                Value {
+                    // Allow only here. Mantissa is 54 bit wide, good enough for thousands of years.
+                    kind: Some(Kind::NumberValue(claims.issued_at as f64)),
+                },
+            ),
+            JWTClaimsFieldName::OtherIdentities => {
+                let mut value_array = Vec::new();
+                for identity in &claims.other_identities {
+                    let identity =
+                        serde_json::to_string(&identity).map_err(Error::SerdeSerializeIdentity)?;
+                    value_array.push(Value {
+                        kind: Some(Kind::StringValue(identity)),
+                    });
+                }
+                inner_struct.insert(
+                    JWTClaimsFieldName::OtherIdentities.name().to_string(),
+                    Value {
+                        kind: Some(Kind::ListValue(ListValue {
+                            values: value_array,
+                        })),
+                    },
+                )
+            }
+        };
+    }
+
+    Ok(Struct {
+        fields: inner_struct,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::WorkloadAPIServer;
-    use core_objects::{Crv, JWKSet, JWTSVIDCompact, KeyUse, Kty, TrustBundle, JWK, SPIFFEID};
+    use core_objects::{
+        Crv, JWKSet, JWTClaims, JWTClaimsFieldName, JWTHeader, JWTSVIDCompact, JWTType, KeyType,
+        KeyUse, Kty, TrustBundle, JWK, JWTSVID,
+    };
     use futures_util::StreamExt;
+    use jwt_svid_validator::MockJWTSVIDValidator;
     use node_attestation_agent::MockNodeAttestation;
+    use prost_types::{value, ListValue, Value};
     use server_agent_api::{create_workload_jwts, get_trust_bundle};
     use spiffe_server_client::MockClient;
     use std::{collections::BTreeSet, io::ErrorKind, sync::Arc};
     use tonic::Request;
+    use trust_bundle_manager::TrustBundleManager;
     use workload_api::{
         spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtsvidRequest,
+        ValidateJwtsvidRequest,
     };
     use workload_attestation::{MockWorkloadAttestation, WorkloadAttributes};
 
-    #[tokio::test]
-    async fn fetch_jwt_bundles_happy_path() {
-        let mut mock_client = MockClient::new();
+    fn init() -> (
+        MockClient,
+        MockWorkloadAttestation,
+        MockNodeAttestation,
+        MockJWTSVIDValidator,
+        TrustBundle,
+    ) {
+        let mock_client = MockClient::new();
         let mock_workload_attestation = MockWorkloadAttestation::new();
         let mock_node_attestation = MockNodeAttestation::new();
+        let mock_jwt_svid_validator = MockJWTSVIDValidator::new();
+
+        let jwk = JWK {
+            x: "MjE2NDE3NTMwMTgxMjY5Njc2MTE3MzAwODU4NjY4Mjg2MDU4MTQ2OTY3ODY0MjU2MDA1MzI0NTA0ODQyNTcxMTcyMzI4NjM1MjgxMjM".to_string(),
+            y: "MzU1NjA3MjI0Mjc5MzAxMjYzMzkxNDg5NjAxMDA2NjMzNDE1NTA2MzQzMTQ5MDIxNzQxNTI0MDMyMzk0ODA1NjM2NjE0MTU0NjMyNzI".to_string(),
+            kty: Kty::EC,
+            crv: Crv::P256,
+            kid: "kid".to_string(),
+            key_use: KeyUse::JWTSVID,
+        };
+
+        let trust_bundle = TrustBundle {
+            trust_domain: "trust_domain".to_string(),
+            jwt_key_set: JWKSet {
+                keys: vec![jwk],
+                spiffe_refresh_hint: 0,
+                spiffe_sequence_number: 0,
+            },
+            x509_key_set: JWKSet {
+                keys: Vec::new(),
+                spiffe_refresh_hint: 0,
+                spiffe_sequence_number: 0,
+            },
+        };
+
+        (
+            mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        )
+    }
+
+    #[tokio::test]
+    async fn validate_jwt_happy_path() {
+        let (
+            mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mut mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
+
+        let request = Request::new(ValidateJwtsvidRequest::default());
+
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
+        let header = JWTHeader {
+            algorithm: KeyType::ES256,
+            key_id: "kid".to_string(),
+            jwt_type: JWTType::JOSE,
+        };
+
+        let claims = JWTClaims {
+            subject: "subject".to_string(),
+            audience: vec!["audience".to_string()],
+            expiry: 10,
+            issued_at: 0,
+            other_identities: Vec::new(),
+        };
+        mock_jwt_svid_validator
+            .expect_validate()
+            .return_once(move |_, _, _| {
+                Ok(JWTSVID {
+                    header,
+                    claims,
+                    signature: "dummy".to_string(),
+                })
+            });
+
+        let workload_server = WorkloadAPIServer::new(
+            mock_client,
+            Arc::new(mock_workload_attestation),
+            Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
+        );
+
+        let response = workload_server
+            .validate_jwtsvid(request)
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(response.spiffe_id, "subject");
+
+        let claims = response.claims.unwrap();
+
+        let subject = claims.fields[JWTClaimsFieldName::Subject.name()]
+            .kind
+            .clone()
+            .unwrap();
+        assert_eq!(subject, value::Kind::StringValue("subject".to_string()));
+
+        let audience = claims.fields[JWTClaimsFieldName::Audience.name()]
+            .kind
+            .clone()
+            .unwrap();
+        let value = Value {
+            kind: Some(value::Kind::StringValue("audience".to_string())),
+        };
+        assert_eq!(
+            audience,
+            value::Kind::ListValue(ListValue {
+                values: vec![value]
+            })
+        );
+
+        let expiry = claims.fields[JWTClaimsFieldName::Expiry.name()]
+            .kind
+            .clone()
+            .unwrap();
+        assert_eq!(expiry, value::Kind::NumberValue(10.0));
+
+        let issued_at = claims.fields[JWTClaimsFieldName::IssuedAt.name()]
+            .kind
+            .clone()
+            .unwrap();
+        assert_eq!(issued_at, value::Kind::NumberValue(0.0));
+
+        let other_identities = claims.fields[JWTClaimsFieldName::OtherIdentities.name()]
+            .kind
+            .clone()
+            .unwrap();
+        assert_eq!(
+            other_identities,
+            value::Kind::ListValue(ListValue { values: Vec::new() })
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::cast_precision_loss)]
+    async fn validate_jwt_error_validation() {
+        let (
+            mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mut mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
+
+        let request = Request::new(ValidateJwtsvidRequest::default());
+
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+        mock_jwt_svid_validator
+            .expect_validate()
+            .return_once(move |_, _, _| Err(jwt_svid_validator::error::Error::InvalidSignature));
+
+        let workload_server = WorkloadAPIServer::new(
+            mock_client,
+            Arc::new(mock_workload_attestation),
+            Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
+        );
+
+        // Unwrap error doesn't work because the debug trait is missing.
+        if workload_server.validate_jwtsvid(request).await.is_ok() {
+            panic!("Expected an error");
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_jwt_bundles_happy_path() {
+        let (
+            mut mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
 
         let trust_domain = "dummy".to_string();
         let jwk_set = JWKSet {
@@ -231,10 +532,15 @@ mod tests {
             })
         });
 
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
         let workload_server = WorkloadAPIServer::new(
-            Arc::new(mock_client),
+            mock_client,
             Arc::new(mock_workload_attestation),
             Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
         );
 
         let request = Request::new(JwtBundlesRequest::default());
@@ -260,9 +566,13 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_jwt_bundles_no_server_response() {
-        let mut mock_client = MockClient::new();
-        let mock_workload_attestation = MockWorkloadAttestation::new();
-        let mock_node_attestation = MockNodeAttestation::new();
+        let (
+            mut mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
 
         mock_client.expect_get_trust_bundle().return_once(move |_| {
             // Use full name here to avoid name collision
@@ -271,10 +581,15 @@ mod tests {
             ))
         });
 
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
         let workload_server = WorkloadAPIServer::new(
-            Arc::new(mock_client),
+            mock_client,
             Arc::new(mock_workload_attestation),
             Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
         );
 
         let request = Request::new(JwtBundlesRequest::default());
@@ -286,14 +601,15 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_jwtsvid_happy_path() {
-        let mut mock_client = MockClient::new();
-        let mut mock_workload_attestation = MockWorkloadAttestation::new();
-        let mut mock_node_attestation = MockNodeAttestation::new();
+        let (
+            mut mock_client,
+            mut mock_workload_attestation,
+            mut mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
 
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+        let spiffe_id = "trust_domain/path".to_string();
 
         let spiffe_id_tmp = spiffe_id.clone();
         mock_client
@@ -320,10 +636,15 @@ mod tests {
             .expect_get_attestation_token()
             .return_once(move || Ok("".to_string()));
 
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
         let workload_server = WorkloadAPIServer::new(
-            Arc::new(mock_client),
+            mock_client,
             Arc::new(mock_workload_attestation),
             Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
         );
         let request = Request::new(JwtsvidRequest::default());
 
@@ -343,9 +664,13 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_jwtsvid_error_workload_attestation() {
-        let mut mock_client = MockClient::new();
-        let mock_workload_attestation = MockWorkloadAttestation::new();
-        let mock_node_attestation = MockNodeAttestation::new();
+        let (
+            mut mock_client,
+            mock_workload_attestation,
+            mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
 
         mock_client
             .expect_create_workload_jwts()
@@ -356,10 +681,15 @@ mod tests {
                 ))
             });
 
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
         let workload_server = WorkloadAPIServer::new(
-            Arc::new(mock_client),
+            mock_client,
             Arc::new(mock_workload_attestation),
             Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
         );
 
         let request = Request::new(JwtsvidRequest::default());
@@ -371,14 +701,15 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_jwtsvid_error_agent_attestation() {
-        let mut mock_client = MockClient::new();
-        let mut mock_workload_attestation = MockWorkloadAttestation::new();
-        let mut mock_node_attestation = MockNodeAttestation::new();
+        let (
+            mut mock_client,
+            mut mock_workload_attestation,
+            mut mock_node_attestation,
+            mock_jwt_svid_validator,
+            trust_bundle,
+        ) = init();
 
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+        let spiffe_id = "trust_domain/path".to_string();
 
         let spiffe_id_tmp = spiffe_id.clone();
         mock_client
@@ -407,10 +738,15 @@ mod tests {
             .expect_get_attestation_token()
             .return_once(move || Ok("".to_string()));
 
+        let mock_client = Arc::new(mock_client);
+        let trust_bundle_manager = TrustBundleManager::new(mock_client.clone(), trust_bundle);
+
         let workload_server = WorkloadAPIServer::new(
-            Arc::new(mock_client),
+            mock_client,
             Arc::new(mock_workload_attestation),
             Arc::new(mock_node_attestation),
+            Arc::new(trust_bundle_manager),
+            Arc::new(mock_jwt_svid_validator),
         );
         let request = Request::new(JwtsvidRequest::default());
         // Unwrap error doesn't work because the debug trait is missing.

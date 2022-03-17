@@ -12,7 +12,8 @@ data:
     port = 8443
 
     [trust-bundle-config]
-    type = "INSECUREBOOTSTRAP"
+    max_retry = 2
+    wait_retry_sec = 2
 
     [node_attestation_config]
     type = "PSAT"

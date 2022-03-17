@@ -11,4 +11,10 @@ pub enum Error {
     MatchIdentity(identity_matcher::error::Error),
     #[error("Unable to attest new agent {0}")]
     AttestAgent(Box<dyn std::error::Error + Send>),
+    #[error(
+        "The server can only create svid for {expected:?} trust domain, request was {actual:?}"
+    )]
+    InvalidTrustDomain { expected: String, actual: String },
+    #[error("Malformed spiffe id in request {0}")]
+    MalformedSPIFFEID(String),
 }

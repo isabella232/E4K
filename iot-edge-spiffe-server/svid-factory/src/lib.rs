@@ -14,9 +14,7 @@ pub mod error;
 
 use std::{cmp::min, sync::Arc};
 
-use core_objects::{
-    get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, SPIFFEID,
-};
+use core_objects::{get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType};
 use error::Error;
 use key_manager::KeyManager;
 use openssl::sha;
@@ -24,12 +22,13 @@ use server_config::Config;
 pub struct SVIDFactory {
     key_manager: Arc<KeyManager>,
     jwt_ttl: u64,
+    trust_domain: String,
 }
 
 #[derive(Clone)]
 pub struct JWTSVIDParams {
-    pub spiffe_id: SPIFFEID,
-    pub audiences: Vec<SPIFFEID>,
+    pub spiffe_id_path: String,
+    pub audiences: Vec<String>,
     pub other_identities: Vec<IdentityTypes>,
 }
 
@@ -39,6 +38,7 @@ impl SVIDFactory {
         SVIDFactory {
             key_manager,
             jwt_ttl: config.jwt.ttl,
+            trust_domain: config.trust_domain.clone(),
         }
     }
 
@@ -69,8 +69,11 @@ impl SVIDFactory {
             jwt_type: JWTType::JWT,
         };
 
+        // Craft spiffe id by concatenating the trust domain and path.
+        let spiffe_id = format!("{}/{}", self.trust_domain, jwt_svid_params.spiffe_id_path);
+
         let claims = JWTClaims {
-            subject: jwt_svid_params.spiffe_id.clone(),
+            subject: spiffe_id.clone(),
             audience: jwt_svid_params.audiences,
             expiry,
             issued_at,
@@ -104,7 +107,7 @@ impl SVIDFactory {
 
         Ok(JWTSVIDCompact {
             token,
-            spiffe_id: jwt_svid_params.spiffe_id,
+            spiffe_id,
             expiry,
             issued_at,
         })
@@ -152,17 +155,10 @@ mod tests {
     async fn sign_digest_happy_path() {
         let (svid_factory, config) = init().await;
 
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
-
+        let spiffe_id_path = "path".to_string();
         let jwt_svid_params = JWTSVIDParams {
-            spiffe_id: spiffe_id.clone(),
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            spiffe_id_path: spiffe_id_path.clone(),
+            audiences: vec!["my trust domain/audiences".to_string()],
             other_identities: Vec::new(),
         };
 
@@ -171,26 +167,22 @@ mod tests {
             .await
             .unwrap();
 
+        let spiffe_id = format!("{}/{}", config.trust_domain, spiffe_id_path);
+
         assert_eq!(config.jwt.ttl, jwt_svid.expiry);
 
-        assert_eq!(spiffe_id.to_string(), jwt_svid.spiffe_id.to_string());
+        assert_eq!(spiffe_id, jwt_svid.spiffe_id);
     }
 
     #[tokio::test]
     async fn sign_digest_saturation_test() {
         let (svid_factory, config) = init().await;
 
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+        let spiffe_id_path = "path".to_string();
 
         let jwt_svid_params = JWTSVIDParams {
-            spiffe_id: spiffe_id.clone(),
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            spiffe_id_path,
+            audiences: vec!["my trust domain/audiences".to_string()],
             other_identities: Vec::new(),
         };
 
@@ -214,17 +206,11 @@ mod tests {
             manager.key_store.delete_key_pair(&id).await.unwrap();
         }
 
-        let spiffe_id = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "path".to_string(),
-        };
+        let spiffe_id_path = "path".to_string();
 
         let jwt_svid_params = JWTSVIDParams {
-            spiffe_id,
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            spiffe_id_path,
+            audiences: vec!["my trust domain/audiences".to_string()],
             other_identities: Vec::new(),
         };
 

@@ -14,11 +14,13 @@ mock-kube = { path = "../../tests/mocks/kube", optional = true }
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 tokio-stream = {version = "0.1", features = ["net"]}
-
 tonic = "0.6"
+
 agent-config = { path = "../config" }
+jwt-svid-validator = { path = "../../common/jwt-svid-validator" }
 node-attestation-agent = { path = "../node-attestation" }
 spiffe-server-client = { path = "../spiffe-server-client" }
+trust-bundle-manager = { path = "../trust-bundle-manager" }
 workload-api = { path = "../../common/workload-api" }
 workload-api-server = { path = "../workload-api-server" }
 workload-attestation = { path = "../workload-attestation" } 

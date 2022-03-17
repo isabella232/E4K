@@ -10,6 +10,10 @@ impl Api {
         &self,
         req: create_workload_jwts::Request,
     ) -> Result<create_workload_jwts::Response, Error> {
+        // Check if the spiffe id filter parameter is correctly formed. If it is, we will
+        // only create jwt svid for that specific spiffe id
+        let spiffe_id_path = get_spiffe_id_path(&req.workload_spiffe_id, &self.trust_domain)?;
+
         let agent_attributes = self
             .node_attestation
             .attest_agent(&req.attestation_token)
@@ -25,8 +29,15 @@ impl Api {
         let mut jwt_svids = Vec::new();
 
         for entry in entries {
+            // If user is requesting for specific spiffe ID. Skip all unconcerned identities.
+            if let Some(spiffe_id_path) = &spiffe_id_path {
+                if spiffe_id_path != &entry.spiffe_id_path {
+                    continue;
+                }
+            }
+
             let jwt_svid_params = JWTSVIDParams {
-                spiffe_id: entry.spiffe_id,
+                spiffe_id_path: entry.spiffe_id_path.clone(),
                 audiences: req.audiences.clone(),
                 other_identities: entry.other_identities,
             };
@@ -57,13 +68,36 @@ impl Api {
     }
 }
 
+fn get_spiffe_id_path(
+    spiffe_id: &Option<String>,
+    expected_trust_domain: &str,
+) -> Result<Option<String>, Error> {
+    if let Some(spiffe_id) = &spiffe_id {
+        let split = spiffe_id.split_once('/');
+        if let Some((trust_domain, path)) = split {
+            if expected_trust_domain != trust_domain {
+                return Err(Error::InvalidTrustDomain {
+                    expected: expected_trust_domain.to_string(),
+                    actual: trust_domain.to_string(),
+                });
+            }
+
+            Ok(Some(path.to_string()))
+        } else {
+            Err(Error::MalformedSPIFFEID(spiffe_id.to_string()))
+        }
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use catalog::{inmemory, Catalog, Entries};
     use core_objects::{
         AttestationConfig, EntryNodeAttestation, EntryWorkloadAttestation, NodeAttestationPlugin,
-        RegistrationEntry, WorkloadAttestationPlugin, CONFIG_DEFAULT_PATH, SPIFFEID,
+        RegistrationEntry, WorkloadAttestationPlugin, CONFIG_DEFAULT_PATH,
     };
     use identity_matcher::IdentityMatcher;
     use key_manager::KeyManager;
@@ -93,27 +127,16 @@ mod tests {
             key_base_path: key_base_path.clone(),
         };
 
-        let spiffe_id_parent = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "parent".to_string(),
-        };
-
-        let spiffe_id_generic_workload = SPIFFEID {
-            trust_domain: "trust_domain".to_string(),
-            path: "generic".to_string(),
-        };
-
         // Create parent
         let entry1 = RegistrationEntry {
             id: String::from("parent"),
             other_identities: Vec::new(),
-            spiffe_id: spiffe_id_parent,
+            spiffe_id_path: "parent".to_string(),
             attestation_config: AttestationConfig::Node(EntryNodeAttestation {
                 value: vec!["AGENTSERVICEACCOUNT:iotedge-spiffe-agent".to_string()],
                 plugin: NodeAttestationPlugin::Psat,
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -124,14 +147,13 @@ mod tests {
         let entry2 = RegistrationEntry {
             id: String::from("workload"),
             other_identities: Vec::new(),
-            spiffe_id: spiffe_id_generic_workload,
+            spiffe_id_path: "generic".to_string(),
             attestation_config: AttestationConfig::Workload(EntryWorkloadAttestation {
                 value: vec!["PODLABELS:app:genericnode".to_string()],
                 plugin: WorkloadAttestationPlugin::K8s,
                 parent_id: "parent".to_string(),
             }),
             admin: false,
-            ttl: 0,
             expires_at: 0,
             dns_names: Vec::new(),
             revision_number: 0,
@@ -168,6 +190,7 @@ mod tests {
             trust_bundle_builder,
             node_attestation,
             identity_matcher,
+            trust_domain: Arc::new(config.trust_domain.clone()),
         };
 
         (api, entries, key_manager, config, client, catalog)
@@ -179,15 +202,14 @@ mod tests {
 
         let entry = entries[1].clone();
 
+        let spiffe_id = format!("{}/{}", api.trust_domain, entry.spiffe_id_path.clone());
+
         let mut workload_selectors = BTreeSet::new();
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
 
-        let req = create_workload_jwts::Request {
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
-            selectors: workload_selectors,
+        let mut req = create_workload_jwts::Request {
+            audiences: vec!["my trust domain/audiences".to_string()],
+            selectors: workload_selectors.clone(),
             attestation_token: "dummy".to_string(),
             workload_spiffe_id: None,
         };
@@ -196,17 +218,65 @@ mod tests {
         let node = get_nodes();
         let token_review = get_token_review();
 
-        client.queue_response(token_review).await;
-        client.queue_response(pod).await;
-        client.queue_response(node).await;
+        client.queue_response(token_review.clone()).await;
+        client.queue_response(pod.clone()).await;
+        client.queue_response(node.clone()).await;
+
+        let response = api.create_workload_jwts(req.clone()).await.unwrap();
+        assert_eq!(response.jwt_svids.len(), 1);
+
+        assert_eq!(response.jwt_svids[0].spiffe_id, spiffe_id);
+
+        // We can also get a response by filtering for one specific id.
+        req.workload_spiffe_id = Some(spiffe_id.clone());
+
+        client.queue_response(token_review.clone()).await;
+        client.queue_response(pod.clone()).await;
+        client.queue_response(node.clone()).await;
 
         let response = api.create_workload_jwts(req).await.unwrap();
         assert_eq!(response.jwt_svids.len(), 1);
-        assert_eq!(
-            response.jwt_svids[0].spiffe_id.trust_domain,
-            entry.spiffe_id.trust_domain
+    }
+
+    #[test]
+    fn get_spiffe_id_path_happy_path() {
+        let trust_domain = "mytrustdomain";
+        let path = "path";
+        let spiffe_id = format!("{}/{}", trust_domain, path);
+
+        let result = get_spiffe_id_path(&Some(spiffe_id), trust_domain)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result, path);
+
+        let result = get_spiffe_id_path(&None, trust_domain).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_spiffe_id_path_invalid_trust_domain_error() {
+        let trust_domain = "mytrustdomain";
+        let path = "path";
+        let spiffe_id = format!("dummy/{}", path);
+
+        let error = get_spiffe_id_path(&Some(spiffe_id), trust_domain).unwrap_err();
+        assert_matches!(
+            error,
+            Error::InvalidTrustDomain {
+                expected: _,
+                actual: _
+            }
         );
-        assert_eq!(response.jwt_svids[0].spiffe_id.path, entry.spiffe_id.path);
+    }
+
+    #[test]
+    fn get_spiffe_id_path_malformed_spiffe_id() {
+        let trust_domain = "mytrustdomain";
+        let path = "path";
+        let spiffe_id = format!("{}{}", trust_domain, path);
+
+        let error = get_spiffe_id_path(&Some(spiffe_id), trust_domain).unwrap_err();
+        assert_matches!(error, Error::MalformedSPIFFEID(_));
     }
 
     #[tokio::test]
@@ -217,10 +287,7 @@ mod tests {
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
 
         let req = create_workload_jwts::Request {
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            audiences: vec!["my trust domain/audiences".to_string()],
             selectors: workload_selectors,
             attestation_token: "dummy".to_string(),
             workload_spiffe_id: None,
@@ -247,10 +314,7 @@ mod tests {
         let (api, _entries, _key_manager, _config, mut client, catalog) = init().await;
 
         let req = create_workload_jwts::Request {
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            audiences: vec!["my trust domain/audiences".to_string()],
             selectors: BTreeSet::new(),
             attestation_token: "dummy".to_string(),
             workload_spiffe_id: None,
@@ -280,10 +344,7 @@ mod tests {
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
 
         let req = create_workload_jwts::Request {
-            audiences: vec![SPIFFEID {
-                trust_domain: "my trust domain".to_string(),
-                path: "audiences".to_string(),
-            }],
+            audiences: vec!["my trust domain/audiences".to_string()],
             selectors: workload_selectors,
             attestation_token: "dummy".to_string(),
             workload_spiffe_id: None,
