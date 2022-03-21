@@ -14,11 +14,14 @@ pub mod error;
 
 use std::{cmp::min, sync::Arc};
 
-use core_objects::{get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType};
+use core_objects::{
+    get_epoch_time, IdentityTypes, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, SPIFFE_ID_PREFIX,
+};
 use error::Error;
 use key_manager::KeyManager;
 use openssl::sha;
 use server_config::Config;
+
 pub struct SVIDFactory {
     key_manager: Arc<KeyManager>,
     jwt_ttl: u64,
@@ -70,7 +73,10 @@ impl SVIDFactory {
         };
 
         // Craft spiffe id by concatenating the trust domain and path.
-        let spiffe_id = format!("{}/{}", self.trust_domain, jwt_svid_params.spiffe_id_path);
+        let spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, self.trust_domain, jwt_svid_params.spiffe_id_path
+        );
 
         let claims = JWTClaims {
             subject: spiffe_id.clone(),
@@ -167,7 +173,10 @@ mod tests {
             .await
             .unwrap();
 
-        let spiffe_id = format!("{}/{}", config.trust_domain, spiffe_id_path);
+        let spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, config.trust_domain, spiffe_id_path
+        );
 
         assert_eq!(config.jwt.ttl, jwt_svid.expiry);
 

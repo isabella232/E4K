@@ -17,7 +17,7 @@ case "$OS:$ARCH" in
         yum install -y epel-release
         yum install -y \
             curl gcc git make pkgconfig \
-            openssl-devel
+            openssl-devel cmake
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')

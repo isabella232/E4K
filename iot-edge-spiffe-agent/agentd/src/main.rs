@@ -26,7 +26,7 @@ use std::{env, error::Error as StdError, sync::Arc, time::Duration};
 use tokio::{fs, net::UnixListener, sync::Notify, task::JoinHandle, time};
 use tonic::transport::Server;
 use trust_bundle_manager::TrustBundleManager;
-use workload_api::spiffe_workload_api_server::SpiffeWorkloadApiServer;
+use workload_api::client_and_server::spiffe_workload_api_server::SpiffeWorkloadApiServer;
 use workload_api_server::{unix_stream, WorkloadAPIServer};
 use workload_attestation::WorkloadAttestatorFactory;
 

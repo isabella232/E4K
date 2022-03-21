@@ -29,7 +29,7 @@ use std::{
 };
 use tonic::{Request, Response};
 use trust_bundle_manager::TrustBundleManager;
-use workload_api::{
+use workload_api::client_and_server::{
     spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtBundlesResponse, Jwtsvid,
     JwtsvidRequest, JwtsvidResponse, ValidateJwtsvidRequest, ValidateJwtsvidResponse,
     X509svidRequest, X509svidResponse,
@@ -313,7 +313,7 @@ mod tests {
     use std::{collections::BTreeSet, io::ErrorKind, sync::Arc};
     use tonic::Request;
     use trust_bundle_manager::TrustBundleManager;
-    use workload_api::{
+    use workload_api::client_and_server::{
         spiffe_workload_api_server::SpiffeWorkloadApi, JwtBundlesRequest, JwtsvidRequest,
         ValidateJwtsvidRequest,
     };

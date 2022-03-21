@@ -12,12 +12,13 @@
 
 use core_objects::JWKSet;
 use log::info;
+use std::{thread, time::Duration};
 use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use workload_api::{
-    spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, JwtsvidRequest,
-    ValidateJwtsvidRequest,
+use workload_api::client_and_server::{
+    spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, Jwtsvid,
+    JwtsvidRequest, ValidateJwtsvidRequest,
 };
 
 #[tokio::main]
@@ -41,6 +42,7 @@ async fn main() {
 
     let mut client = SpiffeWorkloadApiClient::new(channel);
 
+    // Fetch trust bundle test
     let request = JwtBundlesRequest::default();
     let mut response = client.fetch_jwt_bundles(request).await.unwrap();
     let trust_bundle = response.get_mut().message().await.unwrap().unwrap();
@@ -53,19 +55,78 @@ async fn main() {
         );
     }
 
+    // Fetch SVID test
     let request = JwtsvidRequest {
-        audience: vec!["dummy_audience".to_string()],
+        audience: vec!["spiffe://iotedge/mqttbroker".to_string()],
         spiffe_id: String::new(),
     };
     let response = client.fetch_jwtsvid(request).await.unwrap();
     let svids = response.into_inner().svids;
     info!("Got svids {:?}", svids);
 
+    // Validate SVID test
     let request = ValidateJwtsvidRequest {
-        audience: "dummy_audience".to_string(),
+        audience: "spiffe://iotedge/mqttbroker".to_string(),
         svid: svids[0].svid.clone(),
     };
     let response = client.validate_jwtsvid(request).await.unwrap();
     let claims = response.into_inner();
     info!("Got claims {:?}", claims);
+
+    // MQTT test
+    start_mqtt_test(&svids[0]);
+}
+
+fn start_mqtt_test(svid: &Jwtsvid) {
+    let mut count = 0;
+
+    loop {
+        let opts = paho_mqtt::CreateOptionsBuilder::new()
+            .server_uri("tcp://mqttbroker:1883")
+            .client_id(&svid.spiffe_id)
+            .finalize();
+        let mut cli = paho_mqtt::Client::new(opts).unwrap();
+        let mut copts_builder = paho_mqtt::ConnectOptionsBuilder::new();
+
+        // Use 5sec timeouts for sync calls.
+        cli.set_timeout(Duration::from_secs(5));
+
+        let rx = cli.start_consuming();
+
+        copts_builder.user_name(&svid.spiffe_id);
+        copts_builder.password(&svid.svid);
+
+        let copts = copts_builder.finalize();
+
+        // Connect and wait for it to complete or fail
+        cli.connect(Some(copts)).unwrap();
+
+        cli.subscribe("test", 0).unwrap();
+
+        // Create a message and publish it
+        let msg = paho_mqtt::MessageBuilder::new()
+            .topic("test")
+            .payload(format!("Message #{}", count))
+            .qos(1)
+            .finalize();
+
+        count += 1;
+
+        if let Err(e) = cli.publish(msg) {
+            println!("Error sending message: {:?}", e);
+        }
+        let recv = rx.recv();
+
+        if let Ok(Some(message)) = recv {
+            println!(
+                "Message received: {}",
+                String::from_utf8_lossy(message.payload())
+            );
+        }
+
+        // Disconnect from the broker
+        cli.disconnect(None).unwrap();
+
+        thread::sleep(Duration::from_millis(2000));
+    }
 }

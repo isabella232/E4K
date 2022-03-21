@@ -122,7 +122,7 @@ impl JWTSVIDValidator {
 #[cfg(test)]
 mod tests {
     use catalog::inmemory;
-    use core_objects::CONFIG_DEFAULT_PATH;
+    use core_objects::{CONFIG_DEFAULT_PATH, SPIFFE_ID_PREFIX};
     use key_manager::KeyManager;
     use key_store::disk;
     use matches::assert_matches;
@@ -237,7 +237,10 @@ mod tests {
     #[tokio::test]
     async fn validate_invalid_token() {
         let (svid_validator, _svid_factory, trust_bundle, config, _key_manager) = init().await;
-        let audience_spiffe_id = format!("{}/{}", &config.trust_domain, "myaudience");
+        let audience_spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, &config.trust_domain, "myaudience"
+        );
 
         let error = svid_validator
             .validate_inner("dummy", &trust_bundle, &audience_spiffe_id.to_string(), 0)
@@ -318,8 +321,11 @@ mod tests {
         let slots = &*key_manager.slots.read().await;
         let jwt_key = &slots.current_jwt_key;
 
-        let spiffe_id = format!("{}/{}", config.trust_domain, "path");
-        let audience_spiffe_id = format!("{}/{}", config.trust_domain, "myaudience");
+        let spiffe_id = format!("{}{}/{}", SPIFFE_ID_PREFIX, config.trust_domain, "path");
+        let audience_spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, config.trust_domain, "myaudience"
+        );
 
         let header = JWTHeader {
             algorithm: KeyType::PS512, //unimplemented algorithm
@@ -342,8 +348,11 @@ mod tests {
         let slots = &*key_manager.slots.read().await;
         let _jwt_key = &slots.current_jwt_key;
 
-        let spiffe_id = format!("{}/{}", config.trust_domain, "path");
-        let audience_spiffe_id = format!("{}/{}", config.trust_domain, "myaudience");
+        let spiffe_id = format!("{}{}/{}", SPIFFE_ID_PREFIX, config.trust_domain, "path");
+        let audience_spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, config.trust_domain, "myaudience"
+        );
 
         let header = JWTHeader {
             algorithm: key_manager.jwt_key_type,
@@ -366,8 +375,11 @@ mod tests {
         let slots = &*key_manager.slots.read().await;
         let jwt_key = &slots.current_jwt_key;
 
-        let spiffe_id = format!("{}/{}", config.trust_domain, "path");
-        let audience_spiffe_id = format!("{}/{}", config.trust_domain, "myaudience");
+        let spiffe_id = format!("{}{}/{}", SPIFFE_ID_PREFIX, config.trust_domain, "path");
+        let audience_spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX, config.trust_domain, "myaudience"
+        );
 
         let header = JWTHeader {
             algorithm: key_manager.jwt_key_type,

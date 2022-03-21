@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use core_objects::SPIFFE_ID_PREFIX;
 use server_agent_api::{create_workload_jwts, get_trust_bundle};
 use svid_factory::JWTSVIDParams;
 
@@ -73,7 +74,12 @@ fn get_spiffe_id_path(
     expected_trust_domain: &str,
 ) -> Result<Option<String>, Error> {
     if let Some(spiffe_id) = &spiffe_id {
-        let split = spiffe_id.split_once('/');
+        // Remove the scheme part
+        let spiffe_id_path = spiffe_id
+            .strip_prefix(SPIFFE_ID_PREFIX)
+            .ok_or_else(|| Error::MalformedSPIFFEID(spiffe_id.to_string()))?;
+
+        let split = spiffe_id_path.split_once('/');
         if let Some((trust_domain, path)) = split {
             if expected_trust_domain != trust_domain {
                 return Err(Error::InvalidTrustDomain {
@@ -97,7 +103,7 @@ mod tests {
     use catalog::{inmemory, Catalog, Entries};
     use core_objects::{
         AttestationConfig, EntryNodeAttestation, EntryWorkloadAttestation, NodeAttestationPlugin,
-        RegistrationEntry, WorkloadAttestationPlugin, CONFIG_DEFAULT_PATH,
+        RegistrationEntry, WorkloadAttestationPlugin, CONFIG_DEFAULT_PATH, SPIFFE_ID_PREFIX,
     };
     use identity_matcher::IdentityMatcher;
     use key_manager::KeyManager;
@@ -202,7 +208,12 @@ mod tests {
 
         let entry = entries[1].clone();
 
-        let spiffe_id = format!("{}/{}", api.trust_domain, entry.spiffe_id_path.clone());
+        let spiffe_id = format!(
+            "{}{}/{}",
+            SPIFFE_ID_PREFIX,
+            api.trust_domain,
+            entry.spiffe_id_path.clone()
+        );
 
         let mut workload_selectors = BTreeSet::new();
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
@@ -242,7 +253,7 @@ mod tests {
     fn get_spiffe_id_path_happy_path() {
         let trust_domain = "mytrustdomain";
         let path = "path";
-        let spiffe_id = format!("{}/{}", trust_domain, path);
+        let spiffe_id = format!("{}{}/{}", SPIFFE_ID_PREFIX, trust_domain, path);
 
         let result = get_spiffe_id_path(&Some(spiffe_id), trust_domain)
             .unwrap()
@@ -257,7 +268,7 @@ mod tests {
     fn get_spiffe_id_path_invalid_trust_domain_error() {
         let trust_domain = "mytrustdomain";
         let path = "path";
-        let spiffe_id = format!("dummy/{}", path);
+        let spiffe_id = format!("{}dummy/{}", SPIFFE_ID_PREFIX, path);
 
         let error = get_spiffe_id_path(&Some(spiffe_id), trust_domain).unwrap_err();
         assert_matches!(
@@ -273,7 +284,12 @@ mod tests {
     fn get_spiffe_id_path_malformed_spiffe_id() {
         let trust_domain = "mytrustdomain";
         let path = "path";
-        let spiffe_id = format!("{}{}", trust_domain, path);
+        let spiffe_id = format!("{}/{}", trust_domain, path);
+
+        let error = get_spiffe_id_path(&Some(spiffe_id), trust_domain).unwrap_err();
+        assert_matches!(error, Error::MalformedSPIFFEID(_));
+
+        let spiffe_id = format!("{}{}{}", SPIFFE_ID_PREFIX, trust_domain, path);
 
         let error = get_spiffe_id_path(&Some(spiffe_id), trust_domain).unwrap_err();
         assert_matches!(error, Error::MalformedSPIFFEID(_));

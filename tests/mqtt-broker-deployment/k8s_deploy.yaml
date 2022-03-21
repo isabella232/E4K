@@ -1,35 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqttbroker
+spec:
+  type: NodePort
+  ports:
+    - name: mqtt
+      port: 1883
+      targetPort: 1883
+      protocol: TCP
+  selector:
+    app: mqttbroker
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: genericnode
+  name: mqttbroker
   labels:
-    app: genericnode
+    app: mqttbroker
 spec:
   selector:
     matchLabels:
-      app: genericnode
+      app: mqttbroker
   template:
     metadata:
       labels:
-        app: genericnode
+        app: mqttbroker
     spec:
       containers:
-        - name: genericnode
+        - name: mqttbroker
           image: ubuntu
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
           command: ["sleep"]
           args: ["1000000000"]
+          ports:
+            - containerPort: 1883
           volumeMounts:
             - name: working-repo
-              mountPath: /debug          
+              mountPath: /release          
             - name: iotedge-spiffe-agent-socket
               mountPath: /run/iotedge/sockets/           
       volumes:
         - name: working-repo
           hostPath:
-            path: /home/azureuser/iot-k8s-identities/target/debug      
+            path: /home/azureuser/iotedge-broker/data-plane/target/x86_64-unknown-linux-musl/release     
         - name: iotedge-spiffe-agent-socket
           hostPath:
             path: /run/iotedge/sockets/

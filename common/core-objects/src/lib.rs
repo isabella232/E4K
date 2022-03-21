@@ -236,6 +236,8 @@ pub fn get_epoch_time() -> u64 {
     epoch.as_secs()
 }
 
+pub const SPIFFE_ID_PREFIX: &str = "spiffe://";
+
 #[cfg(feature = "tests")]
 pub const CONFIG_DEFAULT_PATH: &str = "../../iot-edge-spiffe-server/config/tests/Config.toml";
 
