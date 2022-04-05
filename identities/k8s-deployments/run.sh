@@ -25,3 +25,5 @@ kubectl apply -f agent/daemonset.yaml
 
 # Checking authorizations
 kubectl auth can-i get pods --as=system:serviceaccount:default:iotedge-spiffe-server
+
+# kubectl exec -it two-containers -c iotedge-spiffe-server -- /bin/bash

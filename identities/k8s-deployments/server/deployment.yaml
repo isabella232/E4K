@@ -28,8 +28,22 @@ spec:
             - name: working-repo
               mountPath: /debug
             - name: config
-              mountPath: /mnt/config                    
+              mountPath: /mnt/config 
+            - name: iotedge-spiffe-server-socket
+              mountPath: /run/iotedge/sockets/                                    
+        - name: iotedge-spiffe-identity-manager
+          image: lefitchereg1.azurecr.io/identity-manager
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          volumeMounts:
+            - name: iotedge-spiffe-server-socket
+              mountPath: /run/iotedge/sockets/                    
       volumes:
+        - name: iotedge-spiffe-server-socket
+          hostPath:
+            path: /run/iotedge/sockets/
+            type: DirectoryOrCreate      
         - name: working-repo
           hostPath:
             path: /home/azureuser/iot-k8s-identities/target/x86_64-unknown-linux-musl/debug

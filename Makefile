@@ -78,7 +78,7 @@ clean:
 
 #Exclude tests and auto generated code
 codecov:
-	$(CARGO) tarpaulin --all --exclude-files common/workload-api/* --exclude-files common/workload-api/* tests/* $(TEST_FEATURES) \
+	$(CARGO) tarpaulin --all --exclude-files identities/common/workload-api/* --exclude-files identities/common/workload-api/* identities/tests/* $(TEST_FEATURES) \
 		$(CARGO_TARGET_ARG) --verbose \
 		--out Lcov --output-dir ./coverage
 

@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-cd /src
+cd /src/identities
 
-. ./ci/install-build-deps.sh
+. ../ci/install-build-deps.sh
 
 make -f /src/Makefile SRC=data codecov
 
