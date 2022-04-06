@@ -16,7 +16,7 @@ use std::{thread, time::Duration};
 use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use workload_api::client_and_server::{
+use workload_api::generated::{
     spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, Jwtsvid,
     JwtsvidRequest, ValidateJwtsvidRequest,
 };

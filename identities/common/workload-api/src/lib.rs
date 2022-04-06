@@ -9,16 +9,17 @@
     clippy::similar_names,
     clippy::too_many_lines
 )]
-pub mod client_and_server;
+pub mod generated {
+    // NOTE: workload.proto is without a "package" directive, so the generated code is in "${OUT_DIR}/_.rs"
+    include!(concat!(env!("OUT_DIR"), "/_.rs"));
+}
 
-use client_and_server::{
+use generated::{
     spiffe_workload_api_client::SpiffeWorkloadApiClient, JwtBundlesRequest, JwtBundlesResponse,
     JwtsvidRequest, JwtsvidResponse, ValidateJwtsvidRequest, ValidateJwtsvidResponse,
 };
-#[cfg(feature = "tests")]
-use mockall::automock;
 
-#[cfg_attr(feature = "tests", automock)]
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait WorkloadAPIClient: Send {
     async fn fetch_jwtsvid(

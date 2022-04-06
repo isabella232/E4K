@@ -1,2 +1,2 @@
 target/
-identities/common/workload-api/workloadapi.proto
+identities/common/workload-api/Cargo.lock

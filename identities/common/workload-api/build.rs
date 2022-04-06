@@ -10,18 +10,24 @@
     clippy::too_many_lines
 )]
 
-use tokio::fs;
+fn main() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let proto = std::path::Path::new(&out_dir).join("workload.proto");
+    let status = std::process::Command::new("curl")
+        .args([
+            "--silent",
+            "--show-error",
+            "--proto",
+            "=https",
+            "--tlsv1.2",
+            "--output",
+            proto.to_str().unwrap(),
+            "https://raw.githubusercontent.com/spiffe/go-spiffe/v1.1.0/proto/spiffe/workload/workload.proto",
+        ])
+        .status()
+        .unwrap();
 
-#[tokio::main]
-async fn main() {
-    let response = reqwest::get("https://raw.githubusercontent.com/spiffe/go-spiffe/v1.1.0/proto/spiffe/workload/workload.proto".to_string())
-    .await
-    .unwrap()
-    .bytes()
-    .await
-    .unwrap();
-    fs::File::create("workloadapi.proto").await.unwrap();
-    fs::write("workloadapi.proto", response).await.unwrap();
+    assert!(status.success());
 
-    tonic_build::compile_protos("./workloadapi.proto").unwrap();
+    tonic_build::compile_protos(proto).unwrap();
 }
