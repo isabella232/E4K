@@ -19,7 +19,7 @@ use generated::{
     JwtsvidRequest, JwtsvidResponse, ValidateJwtsvidRequest, ValidateJwtsvidResponse,
 };
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(feature = "tests", mockall::automock)]
 #[async_trait::async_trait]
 pub trait WorkloadAPIClient: Send {
     async fn fetch_jwtsvid(

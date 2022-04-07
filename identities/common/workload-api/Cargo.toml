@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
+mockall = { version = "0.11", optional = true }
 prost = "0.9"
 prost-types = "0.9"
 tonic = "0.6"
@@ -14,5 +15,5 @@ tonic = "0.6"
 [build-dependencies]
 tonic-build = "0.6"
 
-[dev-dependencies]
-mockall = "0.11"
+[features]
+tests = ["mockall"]
