@@ -196,25 +196,22 @@ async fn create_inner(
 mod tests {
     use super::*;
     use matches::assert_matches;
-    use tempdir::TempDir;
     use uuid::Uuid;
 
-    fn init() -> (String, KeyStore) {
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let config = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
-        (key_base_path, KeyStore::new(&config))
+    fn init(dir: &tempfile::TempDir) -> KeyStore {
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let config = KeyStoreConfigDisk { key_base_path };
+        KeyStore::new(&config)
     }
 
     #[tokio::test]
     async fn create_key_pair_happy_path_tests() {
-        let (key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("{}/{}", key_base_path, id);
+        let file = tmp.path().join(&id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ES256)
@@ -222,28 +219,26 @@ mod tests {
             .unwrap();
 
         // Check file is present
-        let metadata = fs::metadata(file.clone()).await.unwrap();
+        let metadata = fs::metadata(&file).await.unwrap();
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ES256)
             .await
             .unwrap();
-        let metadata2 = fs::metadata(file.clone()).await.unwrap();
+        let metadata2 = fs::metadata(&file).await.unwrap();
 
         // Check file has not been overwritten
         assert_eq!(metadata.modified().unwrap(), metadata2.modified().unwrap());
-
-        // Clean up
-        fs::remove_file(file).await.unwrap();
     }
 
     #[tokio::test]
     async fn delete_key_pair_happy_path_tests() {
-        let (key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
 
-        let file = format!("{}/{}", key_base_path, id);
+        let file = tmp.path().join(&id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ES256)
@@ -252,15 +247,16 @@ mod tests {
 
         plugin.delete_key_pair(&id).await.unwrap();
 
-        // Clean up and verify
-        let error = fs::remove_file(file).await.unwrap_err();
+        // Verify that file is removed
+        let error = fs::remove_file(&file).await.unwrap_err();
 
         assert_eq!(std::io::ErrorKind::NotFound, error.kind());
     }
 
     #[tokio::test]
     async fn delete_key_pair_error_path_tests() {
-        let (_key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
 
@@ -276,11 +272,10 @@ mod tests {
 
     #[tokio::test]
     async fn get_public_key_happy_path() {
-        let (key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
-
-        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ES256)
@@ -288,13 +283,12 @@ mod tests {
             .unwrap();
 
         let _pub_key = plugin.get_public_key(&id).await.unwrap();
-
-        fs::remove_file(file).await.unwrap();
     }
 
     #[tokio::test]
     async fn get_public_key_error_path() {
-        let (_key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
 
@@ -310,11 +304,10 @@ mod tests {
 
     #[tokio::test]
     async fn get_sign_happy_path() {
-        let (key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
-
-        let file = format!("{}/{}", key_base_path, id);
 
         plugin
             .create_key_pair_if_not_exists(&id, KeyType::ES256)
@@ -324,13 +317,12 @@ mod tests {
         let digest = "hello world".as_bytes();
 
         let _signature = plugin.sign(&id, KeyType::ES256, digest).await.unwrap();
-
-        fs::remove_file(file).await.unwrap();
     }
 
     #[tokio::test]
     async fn get_sign_error_path() {
-        let (_key_base_path, plugin) = init();
+        let tmp = tempfile::tempdir().unwrap();
+        let plugin = init(&tmp);
 
         let id = Uuid::new_v4().to_string();
 

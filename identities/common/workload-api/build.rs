@@ -29,5 +29,29 @@ fn main() {
 
     assert!(status.success());
 
-    tonic_build::compile_protos(proto).unwrap();
+    tonic_build::configure()
+        .compile_well_known_types(true)
+        .type_attribute(
+            "google.protobuf.Struct",
+            "#[derive(::serde::Deserialize)] #[serde(transparent)]",
+        )
+        .type_attribute(
+            "google.protobuf.Value",
+            "#[derive(::serde::Deserialize)] #[serde(transparent)]",
+        )
+        .type_attribute(
+            "google.protobuf.ListValue",
+            "#[derive(::serde::Deserialize)] #[serde(transparent)]",
+        )
+        .type_attribute(
+            "google.protobuf.NullValue",
+            "#[derive(::serde_repr::Deserialize_repr)]",
+        )
+        .type_attribute(
+            "google.protobuf.Value.kind",
+            "#[derive(::serde::Deserialize)] #[serde(untagged)]",
+        )
+        .field_attribute("google.protobuf.Value.kind", "#[serde(flatten)]")
+        .compile(&[proto], &[out_dir])
+        .unwrap();
 }

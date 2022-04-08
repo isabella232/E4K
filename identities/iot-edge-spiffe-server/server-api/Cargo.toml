@@ -28,14 +28,14 @@ server-agent-api = { path = "../../common/server-agent-api" }
 svid-factory = { path = "../svid-factory" }
 trust-bundle-builder = { path = "../trust-bundle-builder" }
 
-http-common = { git = "https://github.com/Azure/iot-identity-service" }
+http-common = { git = "https://github.com/Azure/iot-identity-service", branch = "main" }
 
 [dev-dependencies]
-kube = { version = "0.69.0", features = ["runtime", "derive"] }
+kube = { version = "0.70.0", features = ["runtime", "derive"] }
 mock-kube = { path = "../../tests/mocks/kube" }
 matches = "0.1.9"
 node-attestation-server = { path = "../node-attestation", features = ["tests"]  }
-tempdir = "0.3.7"
+tempfile = "3"
 tokio = { version = "1.12.0", features = ["rt", "macros", "time", "test-util"] }
 
 core-objects = { path = "../../common/core-objects", features = ["tests"] }

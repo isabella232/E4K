@@ -1,0 +1,2 @@
+[env]
+PROTOC_NO_VENDOR = "1"

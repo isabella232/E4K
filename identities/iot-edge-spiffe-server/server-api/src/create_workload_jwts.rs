@@ -116,9 +116,10 @@ mod tests {
     use trust_bundle_builder::TrustBundleBuilder;
 
     use std::{collections::BTreeSet, sync::Arc};
-    use tempdir::TempDir;
 
-    async fn init() -> (
+    async fn init(
+        dir: &tempfile::TempDir,
+    ) -> (
         Api,
         Vec<RegistrationEntry>,
         Arc<KeyManager>,
@@ -127,11 +128,8 @@ mod tests {
         Arc<dyn Catalog>,
     ) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let key_plugin = KeyStoreConfigDisk { key_base_path };
 
         // Create parent
         let entry1 = RegistrationEntry {
@@ -204,7 +202,8 @@ mod tests {
 
     #[tokio::test]
     async fn create_new_jwts_happy_path() {
-        let (api, entries, _key_manager, _config, mut client, _catalog) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (api, entries, _key_manager, _config, mut client, _catalog) = init(&tmp).await;
 
         let entry = entries[1].clone();
 
@@ -297,7 +296,8 @@ mod tests {
 
     #[tokio::test]
     async fn create_new_jwts_attest_agent_error() {
-        let (api, _entries, _key_manager, _config, mut client, _catalog) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (api, _entries, _key_manager, _config, mut client, _catalog) = init(&tmp).await;
 
         let mut workload_selectors = BTreeSet::new();
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
@@ -327,7 +327,8 @@ mod tests {
 
     #[tokio::test]
     async fn create_new_jwts_match_identity_error() {
-        let (api, _entries, _key_manager, _config, mut client, catalog) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (api, _entries, _key_manager, _config, mut client, catalog) = init(&tmp).await;
 
         let req = create_workload_jwts::Request {
             audiences: vec!["my trust domain/audiences".to_string()],
@@ -354,7 +355,8 @@ mod tests {
 
     #[tokio::test]
     async fn create_new_jwts_jwt_factory_error() {
-        let (api, _entries, key_manager, _config, mut client, _catalog) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (api, _entries, key_manager, _config, mut client, _catalog) = init(&tmp).await;
 
         let mut workload_selectors = BTreeSet::new();
         workload_selectors.insert("PODLABELS:app:genericnode".to_string());
@@ -386,7 +388,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_trust_bundle_happy_path_test() {
-        let (api, _entries, _key_manager, config, _client, _catalog) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (api, _entries, _key_manager, config, _client, _catalog) = init(&tmp).await;
 
         let req = get_trust_bundle::Params {
             jwt_keys: true,

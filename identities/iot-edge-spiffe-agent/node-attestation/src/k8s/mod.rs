@@ -43,10 +43,9 @@ mod tests {
     use agent_config::NodeAttestationConfig::Psat;
     use core_objects::AGENT_DEFAULT_CONFIG_PATH;
     use matches::assert_matches;
-    use tempdir::TempDir;
 
-    fn init_tests() -> (Config, String) {
-        let dir = TempDir::new("test").unwrap();
+    fn init_tests() -> (Config, impl AsRef<std::path::Path>) {
+        let dir = tempfile::tempdir().unwrap();
         let base_path = dir.into_path().to_str().unwrap().to_string();
 
         let config = Config::load_config(AGENT_DEFAULT_CONFIG_PATH).unwrap();
@@ -58,8 +57,8 @@ mod tests {
     async fn attest_agent_happy_path() {
         let (mut config, base_path) = init_tests();
 
-        let token_path = format!("{}/{}", base_path, "psat_token");
-        fs::write(token_path.clone(), "dummy token").unwrap();
+        let token_path = base_path.as_ref().join("psat_token");
+        fs::write(&token_path, "dummy token").unwrap();
 
         let config = if let Psat(config) = &mut config.node_attestation_config {
             config
@@ -67,7 +66,7 @@ mod tests {
             panic!("Unexpected attestation type");
         };
 
-        config.token_path = token_path;
+        config.token_path = token_path.to_str().unwrap().to_string();
 
         let node_attestation = NodeAttestation::new(config);
 

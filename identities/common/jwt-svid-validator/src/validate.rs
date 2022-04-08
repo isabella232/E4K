@@ -129,12 +129,13 @@ mod tests {
     use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use std::sync::Arc;
     use svid_factory::{JWTSVIDParams, SVIDFactory};
-    use tempdir::TempDir;
     use trust_bundle_builder::TrustBundleBuilder;
 
     use super::*;
 
-    async fn init() -> (
+    async fn init(
+        dir: &tempfile::TempDir,
+    ) -> (
         JWTSVIDValidator,
         SVIDFactory,
         TrustBundle,
@@ -142,11 +143,8 @@ mod tests {
         Arc<KeyManager>,
     ) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let key_plugin = KeyStoreConfigDisk { key_base_path };
 
         // Change key disk plugin path to write in tempdir
         config.key_store = KeyStoreConfig::Disk(key_plugin.clone());
@@ -181,7 +179,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_happy_path() {
-        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init(&tmp).await;
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id_path: "path".to_string(),
@@ -199,7 +198,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_invalid_signature() {
-        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init(&tmp).await;
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id_path: "path".to_string(),
@@ -236,7 +236,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_invalid_token() {
-        let (svid_validator, _svid_factory, trust_bundle, config, _key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, _svid_factory, trust_bundle, config, _key_manager) = init(&tmp).await;
         let audience_spiffe_id = format!(
             "{}{}/{}",
             SPIFFE_ID_PREFIX, &config.trust_domain, "myaudience"
@@ -273,7 +274,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_expired() {
-        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init(&tmp).await;
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id_path: "path".to_string(),
@@ -298,7 +300,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_jwt_invalid_audience() {
-        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, svid_factory, trust_bundle, _config, _key_manager) = init(&tmp).await;
 
         let jwt_svid_params = JWTSVIDParams {
             spiffe_id_path: "path".to_string(),
@@ -317,7 +320,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_jwt_invalid_algorithm() {
-        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init(&tmp).await;
         let slots = &*key_manager.slots.read().await;
         let jwt_key = &slots.current_jwt_key;
 
@@ -344,9 +348,9 @@ mod tests {
 
     #[tokio::test]
     async fn validate_jwt_invalid_kid() {
-        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init().await;
-        let slots = &*key_manager.slots.read().await;
-        let _jwt_key = &slots.current_jwt_key;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init(&tmp).await;
+        let _slots = &*key_manager.slots.read().await;
 
         let spiffe_id = format!("{}{}/{}", SPIFFE_ID_PREFIX, config.trust_domain, "path");
         let audience_spiffe_id = format!(
@@ -371,7 +375,8 @@ mod tests {
 
     #[tokio::test]
     async fn validate_jwt_invalid_jwt_type() {
-        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_validator, _svid_factory, trust_bundle, config, key_manager) = init(&tmp).await;
         let slots = &*key_manager.slots.read().await;
         let jwt_key = &slots.current_jwt_key;
 

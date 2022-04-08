@@ -22,7 +22,7 @@ key-store = { path = "../key-store" }
 
 
 [dev-dependencies]
-tempdir = "0.3.7"
+tempfile = "3"
 
 core-objects = { path = "../../common/core-objects", features = ["tests"] }
 

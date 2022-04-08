@@ -8,13 +8,13 @@ edition = "2021"
 [dependencies]
 async-stream = "0.3"
 futures-util = "0.3"
-kube = { version = "0.69.0", features = ["runtime", "derive"] }
+kube = { version = "0.70.0", features = ["runtime", "derive"] }
 log = "0.4"
 mock-kube = { path = "../../tests/mocks/kube", optional = true }
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync","fs"] }
 tokio-stream = {version = "0.1", features = ["net"]}
-tonic = "0.6"
+tonic = "0.7"
 
 agent-config = { path = "../config" }
 jwt-svid-validator = { path = "../../common/jwt-svid-validator" }

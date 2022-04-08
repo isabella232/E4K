@@ -17,7 +17,25 @@ case "$OS:$ARCH" in
         yum install -y epel-release
         yum install -y \
             curl gcc git make pkgconfig \
-            openssl-devel cmake
+            openssl-devel cmake unzip
+
+        OUT_DIR=$(mktemp -d)
+        OUT="${OUT_DIR}/protoc.zip"
+        >"${OUT}" curl \
+            --verbose \
+            --proto =https \
+            --tlsv1.2 \
+            --location \
+            https://github.com/protocolbuffers/protobuf/releases/download/v3.20.0/protoc-3.20.0-linux-x86_64.zip
+
+        sha256sum --check --strict \
+            <<<"75d8a9d7a2c42566e46411750d589c51276242d8b6247a5724bac0f9283e05a8 *${OUT}"
+
+        unzip -d "${OUT_DIR}" "${OUT}"
+
+        export PROTOC="${OUT_DIR}/bin/protoc"
+        export PROTOC_INCLUDE="${OUT_DIR}/include"
+
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -33,7 +51,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y \
             curl gcc g++ git make pkg-config cmake \
-            libssl-dev
+            libssl-dev protobuf-compiler
         ;;
 
     'debian:9:arm32v7'|'debian:10:arm32v7')
@@ -45,7 +63,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc gcc-arm-linux-gnueabihf git make pkg-config \
-            libc-dev libc-dev:armhf libssl-dev:armhf
+            libc-dev libc-dev:armhf libssl-dev:armhf protobuf-compiler
         ;;
 
     'debian:9:aarch64'|'debian:10:aarch64')
@@ -57,7 +75,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc gcc-aarch64-linux-gnu git make pkg-config \
-            libc-dev libc-dev:arm64 libssl-dev:arm64
+            libc-dev libc-dev:arm64 libssl-dev:arm64 protobuf-compiler
         ;;
 
     'ubuntu:18.04:arm32v7'|'ubuntu:20.04:arm32v7')
@@ -82,7 +100,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc gcc-arm-linux-gnueabihf git make pkg-config \
-            libc-dev libc-dev:armhf libssl-dev:armhf
+            libc-dev libc-dev:armhf libssl-dev:armhf protobuf-compiler
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -107,13 +125,13 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc gcc-aarch64-linux-gnu git make pkg-config \
-            libc-dev libc-dev:arm64 libssl-dev:arm64
+            libc-dev libc-dev:arm64 libssl-dev:arm64 protobuf-compiler
         ;;
 
     'alpine:3.13.7:amd64')
         apk update
         apk upgrade
-        apk add curl gcc git make pkgconfig openssl-dev bash musl-dev
+        apk add curl gcc git make pkgconfig openssl-dev bash musl-dev protobuf
 
         LIBC="musl"
         ;;

@@ -14,19 +14,14 @@ mod error;
 pub mod unix_stream;
 
 use core::pin::Pin;
-use core_objects::{JWTClaims, JWTClaimsFieldName};
 use error::Error;
 use futures_util::Stream;
 use jwt_svid_validator::JWTSVIDValidator;
 use log::{debug, info};
 use node_attestation_agent::NodeAttestation;
-use prost_types::{value::Kind, ListValue, Struct, Value};
 use server_agent_api::{create_workload_jwts, get_trust_bundle};
 use spiffe_server_client::Client;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tonic::{Request, Response};
 use trust_bundle_manager::TrustBundleManager;
 use workload_api::generated::{
@@ -197,11 +192,12 @@ impl SpiffeWorkloadApi for WorkloadAPIServer {
             .await
             .map_err(Error::ValidateJWTSVIDs)?;
 
-        let claims = convert_claims_to_prost_type_struct(&jwt_svid.claims)?;
+        let claims_struct =
+            serde_json::from_str(&serde_json::to_string(&jwt_svid.claims).unwrap()).unwrap();
 
         Ok(Response::new(ValidateJwtsvidResponse {
             spiffe_id: jwt_svid.claims.subject,
-            claims: Some(claims),
+            claims: Some(claims_struct),
         }))
     }
 
@@ -217,97 +213,16 @@ impl SpiffeWorkloadApi for WorkloadAPIServer {
     type FetchJWTBundlesStream = JWTResponseStream;
 }
 
-// Ideally we should be able to do this:
-// let struct_json = serde_json::to_string(&jwt_svid).unwrap();
-// let struct_obj: Struct = serde_json::from_str(struct_json.as_str()).unwrap();
-// This is supported by the crate: https://docs.rs/prost-wkt/0.3.0/prost_wkt/#.
-// However, this is not compatible with tonic that we use to create the server/client for Grpc.
-// So we have to use a more "manual" way to generate the Struct.
-//
-// We allow precision loss because value kind for u64 is not supported yet in prost.
-// Instead we cast is into a f64. Which is ok. 52bits mantissa of f64 is good enough for the code to live thousands of years
-// with 0 loss of precision
-#[allow(clippy::cast_precision_loss)]
-fn convert_claims_to_prost_type_struct(claims: &JWTClaims) -> Result<Struct, Error> {
-    let fields = JWTClaims::as_field_name_array();
-
-    let mut inner_struct = BTreeMap::new();
-
-    for field in fields {
-        match field {
-            JWTClaimsFieldName::Subject => inner_struct.insert(
-                JWTClaimsFieldName::Subject.name().to_string(),
-                Value {
-                    kind: Some(Kind::StringValue(claims.subject.to_string())),
-                },
-            ),
-            JWTClaimsFieldName::Audience => {
-                let mut value_array = Vec::new();
-                for spiffe_id in &claims.audience {
-                    value_array.push(Value {
-                        kind: Some(Kind::StringValue(spiffe_id.to_string())),
-                    });
-                }
-                inner_struct.insert(
-                    JWTClaimsFieldName::Audience.name().to_string(),
-                    Value {
-                        kind: Some(Kind::ListValue(ListValue {
-                            values: value_array,
-                        })),
-                    },
-                )
-            }
-            JWTClaimsFieldName::Expiry => inner_struct.insert(
-                JWTClaimsFieldName::Expiry.name().to_string(),
-                Value {
-                    // Allow only here. Mantissa is 54 bit wide, good enough for thousands of years.
-                    kind: Some(Kind::NumberValue(claims.expiry as f64)),
-                },
-            ),
-            JWTClaimsFieldName::IssuedAt => inner_struct.insert(
-                JWTClaimsFieldName::IssuedAt.name().to_string(),
-                Value {
-                    // Allow only here. Mantissa is 54 bit wide, good enough for thousands of years.
-                    kind: Some(Kind::NumberValue(claims.issued_at as f64)),
-                },
-            ),
-            JWTClaimsFieldName::OtherIdentities => {
-                let mut value_array = Vec::new();
-                for identity in &claims.other_identities {
-                    let identity =
-                        serde_json::to_string(&identity).map_err(Error::SerdeSerializeIdentity)?;
-                    value_array.push(Value {
-                        kind: Some(Kind::StringValue(identity)),
-                    });
-                }
-                inner_struct.insert(
-                    JWTClaimsFieldName::OtherIdentities.name().to_string(),
-                    Value {
-                        kind: Some(Kind::ListValue(ListValue {
-                            values: value_array,
-                        })),
-                    },
-                )
-            }
-        };
-    }
-
-    Ok(Struct {
-        fields: inner_struct,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use crate::WorkloadAPIServer;
     use core_objects::{
-        Crv, JWKSet, JWTClaims, JWTClaimsFieldName, JWTHeader, JWTSVIDCompact, JWTType, KeyType,
-        KeyUse, Kty, TrustBundle, JWK, JWTSVID,
+        Crv, JWKSet, JWTClaims, JWTHeader, JWTSVIDCompact, JWTType, KeyType, KeyUse, Kty,
+        TrustBundle, JWK, JWTSVID,
     };
     use futures_util::StreamExt;
     use jwt_svid_validator::MockJWTSVIDValidator;
     use node_attestation_agent::MockNodeAttestation;
-    use prost_types::{value, ListValue, Value};
     use server_agent_api::{create_workload_jwts, get_trust_bundle};
     use spiffe_server_client::MockClient;
     use std::{collections::BTreeSet, io::ErrorKind, sync::Arc};
@@ -391,15 +306,17 @@ mod tests {
             issued_at: 0,
             other_identities: Vec::new(),
         };
-        mock_jwt_svid_validator
-            .expect_validate()
-            .return_once(move |_, _, _| {
+        mock_jwt_svid_validator.expect_validate().return_once({
+            let claims = claims.clone();
+
+            move |_, _, _| {
                 Ok(JWTSVID {
                     header,
                     claims,
                     signature: "dummy".to_string(),
                 })
-            });
+            }
+        });
 
         let workload_server = WorkloadAPIServer::new(
             mock_client,
@@ -416,47 +333,11 @@ mod tests {
             .into_inner();
         assert_eq!(response.spiffe_id, "subject");
 
-        let claims = response.claims.unwrap();
+        let res_claims = response.claims.unwrap();
 
-        let subject = claims.fields[JWTClaimsFieldName::Subject.name()]
-            .kind
-            .clone()
-            .unwrap();
-        assert_eq!(subject, value::Kind::StringValue("subject".to_string()));
-
-        let audience = claims.fields[JWTClaimsFieldName::Audience.name()]
-            .kind
-            .clone()
-            .unwrap();
-        let value = Value {
-            kind: Some(value::Kind::StringValue("audience".to_string())),
-        };
         assert_eq!(
-            audience,
-            value::Kind::ListValue(ListValue {
-                values: vec![value]
-            })
-        );
-
-        let expiry = claims.fields[JWTClaimsFieldName::Expiry.name()]
-            .kind
-            .clone()
-            .unwrap();
-        assert_eq!(expiry, value::Kind::NumberValue(10.0));
-
-        let issued_at = claims.fields[JWTClaimsFieldName::IssuedAt.name()]
-            .kind
-            .clone()
-            .unwrap();
-        assert_eq!(issued_at, value::Kind::NumberValue(0.0));
-
-        let other_identities = claims.fields[JWTClaimsFieldName::OtherIdentities.name()]
-            .kind
-            .clone()
-            .unwrap();
-        assert_eq!(
-            other_identities,
-            value::Kind::ListValue(ListValue { values: Vec::new() })
+            res_claims,
+            serde_json::from_str(&serde_json::to_string(&claims).unwrap()).unwrap()
         );
     }
 
@@ -488,9 +369,10 @@ mod tests {
         );
 
         // Unwrap error doesn't work because the debug trait is missing.
-        if workload_server.validate_jwtsvid(request).await.is_ok() {
-            panic!("Expected an error");
-        }
+        assert!(
+            workload_server.validate_jwtsvid(request).await.is_err(),
+            "Expected an error"
+        );
     }
 
     #[tokio::test]
@@ -594,9 +476,10 @@ mod tests {
 
         let request = Request::new(JwtBundlesRequest::default());
         // Unwrap error doesn't work because the debug trait is missing.
-        if workload_server.fetch_jwt_bundles(request).await.is_ok() {
-            panic!("Expected an error");
-        }
+        assert!(
+            workload_server.fetch_jwt_bundles(request).await.is_err(),
+            "Expected an error"
+        );
     }
 
     #[tokio::test]
@@ -694,9 +577,10 @@ mod tests {
 
         let request = Request::new(JwtsvidRequest::default());
         // Unwrap error doesn't work because the debug trait is missing.
-        if workload_server.fetch_jwtsvid(request).await.is_ok() {
-            panic!("Expected an error");
-        }
+        assert!(
+            workload_server.fetch_jwtsvid(request).await.is_err(),
+            "Expected an error"
+        );
     }
 
     #[tokio::test]
@@ -750,8 +634,9 @@ mod tests {
         );
         let request = Request::new(JwtsvidRequest::default());
         // Unwrap error doesn't work because the debug trait is missing.
-        if workload_server.fetch_jwtsvid(request).await.is_ok() {
-            panic!("Expected an error");
-        }
+        assert!(
+            workload_server.fetch_jwtsvid(request).await.is_err(),
+            "Expected an error"
+        );
     }
 }

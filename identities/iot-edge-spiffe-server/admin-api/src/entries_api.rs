@@ -259,9 +259,7 @@ mod tests {
         };
 
         let res = api.list_all(req).await.unwrap();
-        if res.entries[0].id != "id" {
-            panic!("Invalid entry");
-        }
+        assert_eq!(res.entries[0].id, "id", "Invalid entry");
         assert_eq!(res.entries.len(), 1);
         assert_eq!(res.next_page_token, Some("id2".to_string()));
 
@@ -270,9 +268,7 @@ mod tests {
             page_token: Some("id2".to_string()),
         };
         let res = api.list_all(req).await.unwrap();
-        if res.entries[0].id != "id2" {
-            panic!("Invalid entry");
-        }
+        assert_eq!(res.entries[0].id, "id2", "Invalid entry");
         assert_eq!(res.entries.len(), 1);
         assert_eq!(res.next_page_token, None);
 

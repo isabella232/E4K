@@ -7,19 +7,20 @@ mod tests {
     };
     use spiffe_server_admin_client::{SpiffeConnector, SpiffeHttpClient};
     use std::sync::Arc;
-    use tempfile::{tempdir, TempDir};
     use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn connect_to_socket() {
-        let server = start_test_server().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let server = start_test_server(&tmp).await;
         let client = SpiffeHttpClient::new(&server.socket).expect("Could not make Spiffe Client");
         client.get_identities().await.expect("Can get identities");
     }
 
     #[tokio::test]
     async fn basic_crud() {
-        let server = start_test_server().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let server = start_test_server(&tmp).await;
         let client = SpiffeHttpClient::new(&server.socket).expect("Could not make Spiffe Client");
 
         // ======= get identities ====================================================================
@@ -76,7 +77,8 @@ mod tests {
 
     #[tokio::test]
     async fn paginated_get() {
-        let server = start_test_server().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let server = start_test_server(&tmp).await;
         let client = SpiffeHttpClient::new(&server.socket).expect("Could not make Spiffe Client");
 
         let current_identites = client.get_identities().await.expect("Can get identities");
@@ -118,33 +120,35 @@ mod tests {
     }
 
     struct TestServer {
-        _dir: TempDir,
-        pub socket: String,
+        socket: String,
     }
 
-    async fn start_test_server() -> TestServer {
-        let tmp_dir = tempdir().unwrap();
-        let socket = tmp_dir.path().join("api.sock");
-        let socket_string: String = socket.as_os_str().to_string_lossy().to_string();
+    async fn start_test_server(dir: &tempfile::TempDir) -> TestServer {
+        let socket = dir
+            .path()
+            .join("api.sock")
+            .as_os_str()
+            .to_string_lossy()
+            .to_string();
 
         let mut config = server_config::Config::load_config(
             "../../iot-edge-spiffe-server/config/tests/Config.toml",
         )
         .unwrap();
 
-        let server_socket_string = socket_string.clone(); // Need to clone to pass to new thread
-        tokio::spawn(async move {
-            config.socket_path = server_socket_string;
+        tokio::spawn({
+            let socket = socket.clone();
 
-            let catalog = Arc::new(catalog::inmemory::Catalog::new());
+            async move {
+                config.socket_path = socket;
 
-            admin_api::start_admin_api(&config, catalog).await.unwrap();
+                let catalog = Arc::new(catalog::inmemory::Catalog::new());
+
+                admin_api::start_admin_api(&config, catalog).await.unwrap();
+            }
         });
         sleep(Duration::from_millis(10)).await;
 
-        TestServer {
-            _dir: tmp_dir,
-            socket: socket_string,
-        }
+        TestServer { socket }
     }
 }

@@ -130,15 +130,11 @@ mod tests {
     use matches::assert_matches;
     use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use std::sync::Arc;
-    use tempdir::TempDir;
 
-    async fn init() -> (SVIDFactory, Config) {
+    async fn init(dir: &tempfile::TempDir) -> (SVIDFactory, Config) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let key_plugin = KeyStoreConfigDisk { key_base_path };
 
         // Change key disk plugin path to write in tempdir
         config.key_store = KeyStoreConfig::Disk(key_plugin.clone());
@@ -159,7 +155,8 @@ mod tests {
 
     #[tokio::test]
     async fn sign_digest_happy_path() {
-        let (svid_factory, config) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_factory, config) = init(&tmp).await;
 
         let spiffe_id_path = "path".to_string();
         let jwt_svid_params = JWTSVIDParams {
@@ -185,7 +182,8 @@ mod tests {
 
     #[tokio::test]
     async fn sign_digest_saturation_test() {
-        let (svid_factory, config) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_factory, config) = init(&tmp).await;
 
         let spiffe_id_path = "path".to_string();
 
@@ -206,7 +204,8 @@ mod tests {
 
     #[tokio::test]
     async fn sign_digest_error_path() {
-        let (svid_factory, _config) = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let (svid_factory, _config) = init(&tmp).await;
         let manager = svid_factory.key_manager.clone();
 
         {

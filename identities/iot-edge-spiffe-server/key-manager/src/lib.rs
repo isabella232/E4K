@@ -208,15 +208,11 @@ mod tests {
     use key_store::{disk, KeyStore};
     use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
     use std::sync::Arc;
-    use tempdir::TempDir;
 
-    async fn init() -> KeyManager {
+    async fn init(dir: &tempfile::TempDir) -> KeyManager {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let key_plugin = KeyStoreConfigDisk { key_base_path };
 
         // Change key disk plugin path to write in tempdir
         config.key_store = KeyStoreConfig::Disk(key_plugin.clone());
@@ -233,7 +229,8 @@ mod tests {
 
     #[tokio::test]
     async fn initialize_test_happy_path() {
-        let manager = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = init(&tmp).await;
 
         // Check the public key has been uploaded
         let (res, version) = manager.catalog.get_jwk("dummy").await.unwrap();
@@ -251,7 +248,8 @@ mod tests {
 
     #[tokio::test]
     async fn remove_jwk_from_catalog_and_store_test_happy_path() {
-        let manager = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = init(&tmp).await;
 
         let current_jwt_key = &manager.slots.write().await.current_jwt_key;
         manager
@@ -281,7 +279,8 @@ mod tests {
 
     #[tokio::test]
     async fn rotate_periodic_test_state_machine() {
-        let manager = init().await;
+        let tmp = tempfile::tempdir().unwrap();
+        let manager = init(&tmp).await;
 
         // We test 3 events
         // 1. Next key create when current time > ttl/2

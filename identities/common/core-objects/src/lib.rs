@@ -12,7 +12,6 @@
 
 use std::{fmt::Display, time::SystemTime};
 
-use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -122,7 +121,7 @@ pub struct JWTHeader {
     pub jwt_type: JWTType,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, FieldName)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JWTClaims {
     pub subject: String,
     pub audience: Vec<String>,

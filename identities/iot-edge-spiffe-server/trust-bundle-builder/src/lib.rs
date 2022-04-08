@@ -79,15 +79,12 @@ mod tests {
     use server_config::{Config, KeyStoreConfig, KeyStoreConfigDisk};
 
     use std::sync::Arc;
-    use tempdir::TempDir;
 
     async fn init() -> (Arc<TrustBundleBuilder>, Config, KeyManager) {
         let mut config = Config::load_config(CONFIG_DEFAULT_PATH).unwrap();
-        let dir = TempDir::new("test").unwrap();
-        let key_base_path = dir.into_path().to_str().unwrap().to_string();
-        let key_plugin = KeyStoreConfigDisk {
-            key_base_path: key_base_path.clone(),
-        };
+        let dir = tempfile::tempdir().unwrap();
+        let key_base_path = dir.path().to_str().unwrap().to_string();
+        let key_plugin = KeyStoreConfigDisk { key_base_path };
 
         // Change key disk plugin path to write in tempdir
         config.key_store = KeyStoreConfig::Disk(key_plugin.clone());

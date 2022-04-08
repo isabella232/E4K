@@ -9,9 +9,24 @@
     clippy::similar_names,
     clippy::too_many_lines
 )]
+
+pub mod google {
+    pub mod protobuf {
+        tonic::include_proto!("google.protobuf");
+    }
+}
+
 pub mod generated {
+    #![allow(
+        clippy::doc_markdown,
+        clippy::must_use_candidate,
+        clippy::wildcard_imports
+    )]
+
+    use crate::google;
+
     // NOTE: workload.proto is without a "package" directive, so the generated code is in "${OUT_DIR}/_.rs"
-    include!(concat!(env!("OUT_DIR"), "/_.rs"));
+    tonic::include_proto!("_");
 }
 
 use generated::{
