@@ -49,4 +49,4 @@ jobs:
           context: .
           file: identities/docker/agent.dockerfile
           push: true
-          tags: ${{ secrets.ACR_REGISTRY }}/identity/agent:${{ github.run_number }}, ${{ secrets.ACR_REGISTRY }}/identity/server:latest
+          tags: ${{ secrets.ACR_REGISTRY }}/identity/agent:${{ github.run_number }}, ${{ secrets.ACR_REGISTRY }}/identity/agent:latest
