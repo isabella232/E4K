@@ -5,12 +5,13 @@ use core_objects::IdentityTypes;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub trust_domain: String,
     pub server_socket_path: String,
-    pub provisioning: Provisioning,
-    pub entry: Vec<Entry>,
+    pub provisioning: Option<Provisioning>,
+    #[serde(rename = "entry")]
+    pub entries: Vec<Entry>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ impl Default for AuthMethod {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub spiffe_id: String,
+    pub spiffe_id_path: String,
     pub attestation_config: AttestationConfig,
     #[serde(default)]
     pub other_identities: Vec<(IdentityTypes, String)>,

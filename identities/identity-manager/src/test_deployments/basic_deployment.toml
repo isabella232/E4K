@@ -2,20 +2,10 @@ trust_domain  = "SPIFFE ID trust domain"
 
 server_socket_path = "IoTEdge SPIFFE Server expose CRUD api so IoTEdge Identity Manager can Create/Request/Update and Delete Identities. This is the UDS interface."
 
-[provisioning]
-iothub_hostname = "IoTHub hostname. Required if not using DPS"
-device_id = "Device name in IoTHub. Required if not using DPS"
-
-    [provisioning.auth]
-    method = "X509" # X509 or SAS (Eventually will disappear, will connect through session broker)
-    identity_pk = "Path to private key"
-    identity_cert = "Path to public key"
-
 # Entries
-## Agents
 [[entry]]
-spiffe_id = "agent1"
-
+spiffe_id = "1"
+spiffe_id_path = "agent"
 [entry.attestation_config]
 type = "NODE" 
 [entry.attestation_config.content]

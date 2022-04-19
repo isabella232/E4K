@@ -50,3 +50,11 @@ jobs:
           file: identities/docker/agent.dockerfile
           push: true
           tags: ${{ secrets.ACR_REGISTRY }}/identity/agent:${{ github.run_number }}, ${{ secrets.ACR_REGISTRY }}/identity/agent:latest
+
+      - name: Push Manager
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: identities/docker/manager.dockerfile
+          push: true
+          tags: ${{ secrets.ACR_REGISTRY }}/identity/manager:${{ github.run_number }}, ${{ secrets.ACR_REGISTRY }}/identity/manager:latest

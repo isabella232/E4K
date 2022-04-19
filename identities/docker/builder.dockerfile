@@ -14,4 +14,4 @@ ENV PKG_CONFIG_ALLOW_CROSS=1 \
     OPENSSL_STATIC=true \
     OPENSSL_DIR=/musl
 
-RUN cargo build -p serverd -p agentd --target=x86_64-unknown-linux-musl
+RUN cargo build -p serverd -p agentd -p managerd --target=x86_64-unknown-linux-musl

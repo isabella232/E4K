@@ -1,0 +1,40 @@
+trust_domain  = "SPIFFE ID trust domain"
+
+server_socket_path = "/run/iotedge/sockets/api.sock"
+
+
+# Entries
+[[entry]]
+spiffe_id = "1"
+spiffe_id_path = "agent"
+[entry.attestation_config]
+type = "NODE" 
+[entry.attestation_config.content]
+value = ["AGENTSERVICEACCOUNT:iotedge-spiffe-agent"]
+plugin = "PSAT"
+
+[[entry]]
+spiffe_id = "2"
+spiffe_id_path = "genericnode"
+[entry.attestation_config]
+type = "WORKLOAD" 
+[entry.attestation_config.content]
+value = ["PODLABELS:app:genericnode"]
+plugin = "K8S"
+parent_id = "1"
+[[other_identities]]
+type = "IOTHUB"
+content = {iot_hub_hostname = "myhub", device_id = "mydevice", module_id = "modid" }
+[[other_identities]]
+type = "CUSTOM"
+content = "full json here"
+
+[[entry]]
+spiffe_id = "3"
+spiffe_id_path = "mqttbroker"
+[entry.attestation_config]
+type = "WORKLOAD" 
+[entry.attestation_config.content]
+value = ["PODLABELS:app:mqttbroker"]
+plugin = "K8S"
+parent_id = "1"

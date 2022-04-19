@@ -12,7 +12,9 @@
 )]
 
 mod spiffe_connector;
+mod spiffe_fake_connector;
 mod spiffe_http_client;
 
 pub use spiffe_connector::SpiffeConnector;
+pub use spiffe_fake_connector::SpiffeFakeConnector;
 pub use spiffe_http_client::SpiffeHttpClient;
